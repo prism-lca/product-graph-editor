@@ -44,9 +44,3 @@ The three formerly accepted visual failures (issues #37, #38, #39) are all
 fixed and closed, so there is no longer an accepted-failure allowance: a
 failing visual test is now simply a regression. Never update screenshots
 without inspecting the actual, expected, and diff images.
-
-## Git workflow
-
-Only maintainers (calvinw, elenachoi1) can push to `main`; they may commit
-to it directly. Everyone else works on a branch and opens a pull request
-with `gh pr create` for a maintainer to merge. Never force-push.
