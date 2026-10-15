@@ -5,6 +5,47 @@
 This plan starts fresh from how the app looks today. It does not build on the
 earlier responsive plans in `plan/`.
 
+## Execution checkpoint (15 October 2026)
+
+The header stage is committed in `83ca658`. Stages 2–7 are implemented and
+verified on `responsive-version-2`. Keep this work local until the responsive
+version is complete and the user requests publication. Resuming verification also
+fixed Sankey settings focus restoration on Escape and the close button, with
+browser coverage for both paths. Workflow captures disable animations so the
+screenshots show settled layouts.
+
+Verification at 375 × 812, 768 × 1024, and 1440 × 900:
+
+- `npm run build`: passed (existing large-chunk advisory).
+- `npm run lint`: passed.
+- `npm run test:unit`: 117 passed.
+- `npm run test:responsive`: 88 passed, 2 skipped. Both skips are the
+  desktop-header overlap test at phone/tablet sizes. The chat test now exercises
+  overlays on narrow screens and resizing on desktop without skipping.
+- Focused version-two workflow rerun after the keyboard fix: 12 passed.
+- `npm run test:visual`: 66 passed, including dark and light snapshots against
+  unchanged baselines.
+
+Visually inspected phone property-editor, Sankey-settings, and impact-analysis
+captures, plus tablet and desktop property-editor captures. Browser workflows
+check navigation, contained overlays and tables, toolbar reachability, sheet
+resizing, panel exclusivity, guarded edits, and local phone orientation.
+
+### Follow-up mobile refinements
+
+- Main graph and Sankey toolbars use the compact tablet/desktop styling while
+  retaining their existing controls and drag handles. On phones they can sit
+  flush below the navbar, including while a graph activity is selected.
+- Phone global Settings now opens from the account menu instead of the
+  hamburger menu. Closing settings restores focus to the account button.
+- Build, lint, and 117 unit tests passed. The full responsive run after the
+  toolbar fixes passed 91 tests with the same 2 viewport-specific skips. The
+  subsequent account-settings workflow passed at all three supported sizes,
+  including theme changes and focus restoration.
+- The visual run passed 65 tests, including dark/light screenshots. One test
+  was disrupted by a development reload during the menu edit; its isolated
+  rerun passed. No screenshot baselines were changed.
+
 ## Sizes
 
 The plan uses the three sizes from `playwright.responsive.config.ts`.

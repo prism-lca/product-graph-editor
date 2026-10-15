@@ -1,6 +1,6 @@
 import { expect, test } from "@playwright/test"
 import { productGraphTemplatesFixture } from "../fixtures/product-graph-templates"
-import { calculate, expectInsideViewport, mockLcaApi, openAnalysisView, pageMetrics } from "./helpers"
+import { calculate, expectInsideViewport, mockLcaApi, openAnalysisView, openPrimaryView, pageMetrics } from "./helpers"
 
 test.beforeEach(async ({ page }) => {
   await mockLcaApi(page)
@@ -23,7 +23,7 @@ test("graph controls, settings, and node inspector remain reachable", async ({ p
 })
 
 test("editor actions and source remain reachable", async ({ page }) => {
-  await page.getByRole("radio", { name: "Edit", exact: true }).click()
+  await openPrimaryView(page, "Edit")
 
   await expectInsideViewport(page.locator(".yaml-editor"), page)
   const yamlTextbox = page.getByRole("textbox", { name: "Product graph YAML" })
@@ -75,10 +75,22 @@ test("analysis views contain their tables without page overflow", async ({ page 
   }
 })
 
-test("global settings remain reachable", async ({ page }) => {
-  await page.getByRole("button", { name: "Global settings" }).click()
+test("global settings remain reachable", async ({ page }, testInfo) => {
+  if (page.viewportSize()!.width <= 620) {
+    await page.getByRole("button", { name: "Open navigation" }).click()
+    await expect(page.getByRole("menuitem", { name: "Settings", exact: true })).toHaveCount(0)
+    await page.keyboard.press("Escape")
+    await page.getByRole("button", { name: "Account menu" }).click()
+    await expectInsideViewport(page.getByRole("menu", { name: "Account menu" }), page)
+    await page.screenshot({ animations: "disabled", path: testInfo.outputPath("account-settings.png") })
+    await page.getByRole("menuitem", { name: "Settings", exact: true }).click()
+  } else await page.getByRole("button", { name: "Global settings" }).click()
   await expectInsideViewport(page.locator(".global-settings-panel"), page)
+  await page.getByRole("radio", { name: "Light", exact: true }).click()
+  await expect(page.getByRole("radio", { name: "Light", exact: true })).toHaveAttribute("aria-checked", "true")
+  await page.screenshot({ animations: "disabled", path: testInfo.outputPath("global-settings.png") })
   await page.getByRole("button", { name: "Close global settings" }).click()
+  if (page.viewportSize()!.width <= 620) await expect(page.getByRole("button", { name: "Account menu" })).toBeFocused()
 })
 
 test("Sankey chart and settings remain reachable", async ({ page }) => {

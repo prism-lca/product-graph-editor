@@ -1,4 +1,4 @@
-import { useState } from "react"
+import { useWorkspacePanel } from "@/hooks/useWorkspacePanel"
 import { Check, ChevronDown, CopyPlus, Download, FilePlus2, FileUp, History, Save as SaveIcon, Trash2, X } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import {
@@ -52,7 +52,7 @@ export function FileMenu({
   documentSnapshot?: DocumentSnapshot
   onRestoreVersion?: (versionId: string) => void
 }) {
-  const [open, setOpen] = useState(false)
+  const [open, setOpen] = useWorkspacePanel()
   return <DropdownMenu open={open} onOpenChange={setOpen}>
     <DropdownMenuTrigger asChild>
       <Button data-file-menu-trigger className="navbar-menu-trigger model-menu-trigger" variant="ghost" size="sm">File<ChevronDown data-icon="inline-end" /></Button>

@@ -1,4 +1,6 @@
-import { useRef } from "react"
+import { useRef, useState } from "react"
+import { usePhoneLayout } from "@/hooks/usePhoneLayout"
+import { useSelectionPanel } from "@/hooks/useWorkspacePanel"
 import { Box, PanelLeftClose, SlidersHorizontal, X } from "lucide-react"
 import type { Node } from "@xyflow/react"
 import { Button } from "@/components/ui/button"
@@ -39,7 +41,11 @@ export function Inspector({
 }) {
   const { formatNumber } = useDisplaySettings()
   const panelRef = useRef<HTMLElement | null>(null)
+  const phone = usePhoneLayout()
+  const [sheetHeight, setSheetHeight] = useState(50)
+  const dragStart = useRef({ y: 0, height: 50 })
   const open = docked || selected !== null
+  useSelectionPanel(!docked && open, clearNodeSelection)
   const detailsSelection = docked ? selected : inspectorSelection
 
   if (docked && collapsed) {
@@ -51,7 +57,13 @@ export function Inspector({
   }
 
   return (
-    <aside ref={panelRef} className={`inspector${open ? " is-open" : ""}${docked ? " is-docked" : ""}`} aria-label="Property editor" aria-hidden={!open} inert={!open}>
+    <aside ref={panelRef} className={`inspector${open ? " is-open" : ""}${docked ? " is-docked" : ""}`} style={phone ? { height: `${sheetHeight}dvh` } : undefined} aria-label="Property editor" aria-hidden={!open} inert={!open}>
+    {phone ? <button type="button" className="sheet-resize-handle" aria-label="Resize property editor" aria-expanded={sheetHeight > 50}
+      onClick={(event) => { if (event.detail === 0) setSheetHeight((height) => height > 50 ? 50 : 90) }}
+      onPointerDown={(event) => { dragStart.current = { y: event.clientY, height: sheetHeight }; event.currentTarget.setPointerCapture(event.pointerId) }}
+      onPointerMove={(event) => { if (event.currentTarget.hasPointerCapture(event.pointerId)) setSheetHeight(Math.min(90, Math.max(35, dragStart.current.height + (dragStart.current.y - event.clientY) / window.innerHeight * 100))) }}
+      onPointerUp={(event) => { event.currentTarget.releasePointerCapture(event.pointerId); if (Math.abs(event.clientY - dragStart.current.y) <= 5) setSheetHeight((height) => height > 50 ? 50 : 90) }}
+      onKeyDown={(event) => { if (event.key === "ArrowUp" || event.key === "ArrowDown") { event.preventDefault(); setSheetHeight((height) => Math.min(90, Math.max(35, height + (event.key === "ArrowUp" ? 10 : -10)))) } }}><span /></button> : null}
     {docked ? <RailResizeHandle panelRef={panelRef} label="Resize property editor" /> : null}
   <div className="inspector-scroll">
     {/* The close button sits on the panel's outer (left) edge, mirroring the
