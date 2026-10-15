@@ -12,7 +12,7 @@ import remarkGfm from "remark-gfm"
 import prismLogoRound from "./assets/prism-logo-round.png"
 import {
   BarChart3, Check, ChevronLeft, GripVertical, MessageSquare, Scan, LayoutGrid, ChevronDown,
-  Minus, Moon, MousePointer2, Plus, Settings2, Sun, X,
+  Menu, Minus, Moon, MousePointer2, Plus, Settings2, Sun, X,
 } from "lucide-react"
 import { parse } from "yaml"
 import { Button } from "@/components/ui/button"
@@ -54,6 +54,7 @@ import { useCalculation } from "@/hooks/useCalculation"
 import { GraphCanvas } from "@/components/graph/GraphCanvas"
 import { Inspector } from "@/components/graph/Inspector"
 import { useDockedEditor } from "@/hooks/useDockedEditor"
+import { usePhoneLayout } from "@/hooks/usePhoneLayout"
 import { ScenarioPanel } from "@/components/graph/ScenarioPanel"
 import { useGraphModel } from "@/hooks/useGraphModel"
 import { useDraggablePosition } from "@/hooks/useDraggablePosition"
@@ -717,6 +718,12 @@ function GraphEditor({ onTitleChange, navbarTarget, chatPortalTarget, active, ch
 }
 
 function AppContent({ user, signOut }: { user: User; signOut: () => Promise<void> }) {
+  const phone = usePhoneLayout()
+  const docked = useDockedEditor()
+  const view = useProductGraphStore((state) => state.activeView)
+  const hasResults = useProductGraphStore(selectHasCurrentResults)
+  const actions = useProductGraphStore((state) => state.actions)
+  const destinations = [["yaml", "Edit"], ["graph", "Graph"], ["results", "LCA results"], ["inventory", "Inventory"], ["impact", "Impact analysis"], ["process", "Process results"], ["contribution", "Contributions"], ["sankey", "Sankey"]] as const
   const [welcomeOpen, setWelcomeOpen] = useState(true)
   const [settingsOpen, setSettingsOpen] = useState(false)
   const [chatOpen, setChatOpen] = useState(false)
@@ -732,6 +739,18 @@ function AppContent({ user, signOut }: { user: User; signOut: () => Promise<void
         {welcomeOpen ? <WelcomePage onExplore={() => setWelcomeOpen(false)} /> : null}
         <div className="app-main-pane">
           <header className="topbar" hidden={welcomeOpen}>
+          {phone ? <DropdownMenu>
+            <DropdownMenuTrigger asChild><Button variant="ghost" size="icon" aria-label="Open navigation"><Menu /></Button></DropdownMenuTrigger>
+            <DropdownMenuContent align="start" className="phone-navigation">
+              <DropdownMenuGroup>
+                {destinations.map(([destination, label]) => <DropdownMenuItem key={destination} aria-current={view === destination ? "page" : undefined} disabled={!["yaml", "graph", "results"].includes(destination) && !hasResults} onSelect={() => actions.requestViewChange(destination)}>{label}{view === destination ? <Check /> : null}</DropdownMenuItem>)}
+                <DropdownMenuItem onSelect={() => setChatOpen(true)}>Chat</DropdownMenuItem>
+                <DropdownMenuItem onSelect={() => setSettingsOpen(true)}>Settings</DropdownMenuItem>
+                <DropdownMenuItem onSelect={() => setWelcomeOpen(true)}>Welcome</DropdownMenuItem>
+              </DropdownMenuGroup>
+            </DropdownMenuContent>
+          </DropdownMenu> : null}
+          {phone ? <span className="phone-view-title">{destinations.find(([destination]) => destination === view)?.[1]}</span> : null}
           <div className="brand"><button className="brand-home" type="button" onClick={() => setWelcomeOpen(true)} aria-label="Open PRISM welcome page"><span className="brand-mark"><img src={prismLogoRound} alt="" aria-hidden="true" /></span></button><span className="brand-product-name"><span>PRISM</span><span className="brand-product-descriptor"> Life Cycle Assessment</span></span><span className="brand-separator">·</span><h1 className="brand-study-title">{workspaceTitle}</h1></div>
           <div ref={setNavbarTarget} className="navbar-portal-target" />
           <div className="top-actions">
@@ -762,11 +781,11 @@ function AppContent({ user, signOut }: { user: User; signOut: () => Promise<void
                 </div> : null}
               </PopoverContent>
             </Popover>
-            <Button variant="ghost" className="logout-trigger" type="button" onClick={() => void signOut()}>Log out</Button>
-            <div className="user-account" title={[user.user_metadata.full_name, user.email].filter(Boolean).join(" · ")}>
+            {docked ? <Button variant="ghost" className="logout-trigger" type="button" onClick={() => void signOut()}>Log out</Button> : null}
+            <DropdownMenu><DropdownMenuTrigger asChild><button type="button" aria-label="Account menu" className="user-account" title={[user.user_metadata.full_name, user.email].filter(Boolean).join(" · ")}>
               {user.user_metadata.avatar_url ? <img src={user.user_metadata.avatar_url} alt="" referrerPolicy="no-referrer" /> : <span>{(user.user_metadata.full_name ?? user.email ?? "?").slice(0, 1).toUpperCase()}</span>}
               <div><strong>{user.user_metadata.full_name ?? "Signed in"}</strong><small>{user.email}</small></div>
-            </div>
+            </button></DropdownMenuTrigger><DropdownMenuContent align="end"><DropdownMenuGroup><DropdownMenuLabel>{user.email}</DropdownMenuLabel><DropdownMenuItem onSelect={() => void signOut()}>Log out</DropdownMenuItem></DropdownMenuGroup></DropdownMenuContent></DropdownMenu>
           </div>
           </header>
           {/* The chat sits on the left, under the navbar, beside the workspace. */}

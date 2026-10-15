@@ -60,33 +60,37 @@ export async function pageMetrics(page: Page) {
 }
 
 export async function calculate(page: Page) {
-  const desktop = (page.viewportSize()?.width ?? 0) > 900
-  const results = desktop
-    ? page.getByRole("button", { name: "Results", exact: true })
-    : page.getByRole("radio", { name: "Results", exact: true })
-  await expect(results).toBeEnabled()
-  await results.click()
-  if (desktop) {
-    await page.getByRole("menuitem", { name: "Inventory", exact: true }).click()
-    await expect(page.locator(".inventory-view")).toBeVisible()
-  } else {
-    await expect(page.locator(".markdown-report")).toBeVisible()
-  }
+  await openAnalysisView(page, "Inventory")
+  await expect(page.locator(".inventory-view")).toBeVisible()
 }
 
 export async function openAnalysisView(page: Page, name: string) {
-  if ((page.viewportSize()?.width ?? 0) > 900) {
+  {
     const desktopNames: Record<string, string> = {
       "Impact Analysis": "Impact analysis",
       "Process Results": "Process results",
       Contribution: "Contributions",
       "Sankey Graph": "Sankey",
     }
-    await page.getByRole("button", { name: "Results", exact: true }).click()
+    await page.getByRole("button", { name: (page.viewportSize()?.width ?? 0) <= 620 ? "Open navigation" : "Results", exact: true }).click()
+    await expect(page.getByRole("menuitem", { name: desktopNames[name] ?? name, exact: true })).toBeEnabled()
     await page.getByRole("menuitem", { name: desktopNames[name] ?? name, exact: true }).click()
     return
   }
-  await page.getByRole("radio", { name, exact: true }).click()
+}
+
+export async function openPrimaryView(page: Page, name: string) {
+  if ((page.viewportSize()?.width ?? 0) <= 620) {
+    await page.getByRole("button", { name: "Open navigation" }).click()
+    await page.getByRole("menuitem", { name, exact: true }).click()
+  } else await page.getByRole("radio", { name, exact: true }).click()
+}
+
+export async function openChat(page: Page) {
+  if ((page.viewportSize()?.width ?? 0) <= 620) {
+    await page.getByRole("button", { name: "Open navigation" }).click()
+    await page.getByRole("menuitem", { name: "Chat", exact: true }).click()
+  } else await page.getByRole("button", { name: "Open AI assistant" }).click()
 }
 
 export async function expectInsideViewport(locator: Locator, page: Page) {

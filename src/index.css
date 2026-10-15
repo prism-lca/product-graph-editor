@@ -891,6 +891,42 @@ html[data-theme="light"] .process-flow-table .empty-row td { color: #6b7280; }
 }
 
 
+/* Version 2 shares the navigation bar at tablet widths. */
+.phone-view-title { min-width: 0; max-width: 105px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: 12px; }
+.phone-navigation { width: min(280px, calc(100vw - 20px)); max-height: calc(100dvh - 72px); overflow-y: auto; }
+.phone-navigation [role="menuitem"] { min-height: 44px; justify-content: space-between; }
+button.user-account { padding: 0; border: 0; background: transparent; text-align: left; cursor: pointer; }
+@media (max-width: 900px) {
+  .navbar-portal-target { display: block; }
+  .canvas-head { display: none; }
+  .brand-product-name, .brand-study-title, .brand-separator { display: none; }
+  .brand { flex: none; }
+  .desktop-navbar { gap: 8px; }
+  .navbar-model-title { flex: 1 1 auto; min-width: 0; max-width: 200px; margin: 0; padding: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .desktop-navbar-menus { flex: none; }
+  .desktop-navbar .navbar-menu-trigger, .desktop-primary-nav button { min-height: 44px; }
+  .navbar-status { display: none; }
+  .top-actions { gap: 4px; }
+  .user-account > div { display: none; }
+  .graph-viewport, .graph-viewport.has-inspector { inset: 12px 28px 12px 12px; }
+  .graph-toolbar { top: 12px; }
+  .yaml-editor, .results-empty, .results-panel,
+  .inventory-view, .impact-view, .process-results-view, .contribution-view, .sankey-view { inset: 12px 28px 12px 12px; }
+  .panel-tab { top: 12px; }
+  .sankey-toolbar { top: 12px; }
+}
+@media (max-width: 620px) {
+  .topbar { gap: 4px; padding: 0 6px; }
+  .topbar > .brand, .desktop-primary-nav, .desktop-navbar-menus > [aria-label="Results"], .global-settings-trigger { display: none; }
+  .desktop-navbar { gap: 4px; }
+  .navbar-model-title { font-size: 11px; }
+  .top-actions { flex: none; }
+  .ai-chat-pane > .panel-tab { display: none; }
+  .graph-viewport, .graph-viewport.has-inspector,
+  .yaml-editor, .results-empty, .results-panel,
+  .inventory-view, .impact-view, .process-results-view, .contribution-view, .sankey-view { inset: 8px; }
+}
+
 /* Draggable scenario edge label */
 .scenario-edge-label { position: absolute; z-index: 5; padding: 7px 14px; border: 1px solid var(--panel-border, #343941); border-radius: 7px; color: #d7dae0; background: #111318; font-size: 26px; font-weight: 750; font-variant-numeric: tabular-nums; white-space: nowrap; pointer-events: all; }
 .scenario-edge-label.is-draggable { cursor: ew-resize; touch-action: none; border-color: #38bdf8; }
