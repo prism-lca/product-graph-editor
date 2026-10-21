@@ -918,6 +918,10 @@ button.user-account { padding: 0 0 0 4px; border: 0; background: transparent; te
   .impact-controls label { min-height: 36px; }
   .impact-threshold { flex-wrap: wrap; }
   .contribution-controls > *, .contribution-select { max-width: 100%; min-width: 0; }
+  .inventory-table-wrap { padding: 16px 0 8px; overscroll-behavior-x: contain; }
+  .requirements .inventory-table-wrap { padding-top: 16px; }
+  .inventory-table td:first-child { overflow-wrap: anywhere; }
+  .inventory-table .empty-row td { position: static; }
   .inventory-table-wrap, .impact-table-wrap, .process-impact-table-wrap, .process-flow-table-wrap, .contribution-table-wrap { isolation: isolate; }
   .inventory-table-wrap tr > :first-child, .impact-table-wrap tr > :first-child,
   .process-impact-table-wrap tr > :first-child, .process-flow-table-wrap tr > :first-child,
