@@ -37,11 +37,11 @@ const viewportBounds = (): Bounds => ({ left: 0, top: 0, right: window.innerWidt
  * the lower ones so a panel larger than its bounds still starts inside them
  * rather than being pushed off the opposite edge.
  */
-function clampToBounds({ offset, top }: Offset, width: number, height: number, anchor: Anchor, bounds: Bounds): Offset {
+function clampToBounds({ offset, top }: Offset, width: number, height: number, anchor: Anchor, bounds: Bounds, topMargin = EDGE_MARGIN): Offset {
   const left = anchor === "left" ? offset : window.innerWidth - offset - width
   const minLeft = bounds.left + EDGE_MARGIN
   const maxLeft = Math.max(minLeft, bounds.right - width - EDGE_MARGIN)
-  const minTop = bounds.top + EDGE_MARGIN
+  const minTop = bounds.top + topMargin
   const maxTop = Math.max(minTop, bounds.bottom - height - EDGE_MARGIN)
   const clampedLeft = Math.min(Math.max(minLeft, left), maxLeft)
   return {
@@ -62,12 +62,14 @@ function clampToBounds({ offset, top }: Offset, width: number, height: number, a
  */
 export function useDraggablePosition<T extends HTMLElement = HTMLDivElement>(
   storageKey: string,
-  { anchor = "left", container, topLimit }: {
+  { anchor = "left", container, topLimit, topMargin = EDGE_MARGIN }: {
     anchor?: Anchor
     /** Keep the panel inside this element (e.g. the graph canvas) rather than the viewport. */
     container?: () => HTMLElement | null
     /** Let the panel rise above the container's top, up to this viewport y (e.g. the navbar's bottom). */
     topLimit?: () => number | null
+    /** Clearance above the toolbar; phones can sit flush beneath the navbar. */
+    topMargin?: number
   } = {},
 ) {
   const [stored, setStored] = useState<Offset | null>(() => storedPosition(storageKey, anchor))
@@ -90,12 +92,12 @@ export function useDraggablePosition<T extends HTMLElement = HTMLDivElement>(
     const current = storedRef.current
     const panel = panelRef.current
     if (!current || !panel) return
-    const next = clampToBounds(current, panel.offsetWidth, panel.offsetHeight, anchor, bounds())
+    const next = clampToBounds(current, panel.offsetWidth, panel.offsetHeight, anchor, bounds(), topMargin)
     if (next.offset === current.offset && next.top === current.top) return
     storedRef.current = next
     setStored(next)
     persistPosition(storageKey, anchor, next)
-  }, [anchor, bounds, storageKey])
+  }, [anchor, bounds, storageKey, topMargin])
 
   // Layout effect so a stranded panel is corrected before it can be painted.
   useLayoutEffect(reconcile, [reconcile])
@@ -131,6 +133,7 @@ export function useDraggablePosition<T extends HTMLElement = HTMLDivElement>(
         panel.offsetHeight,
         anchor,
         bounds(),
+        topMargin,
       )
       setStored(next)
     }
@@ -141,7 +144,7 @@ export function useDraggablePosition<T extends HTMLElement = HTMLDivElement>(
     }
     window.addEventListener("pointermove", move)
     window.addEventListener("pointerup", finish, { once: true })
-  }, [anchor, bounds, storageKey])
+  }, [anchor, bounds, storageKey, topMargin])
 
   /** Forget the dragged position so the panel returns to its CSS default. */
   const reset = useCallback(() => {

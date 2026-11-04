@@ -1,4 +1,5 @@
 import { useState } from "react"
+import { usePhoneLayout } from "@/hooks/usePhoneLayout"
 import { BarChart3, ChevronDown } from "lucide-react"
 import { ResizableTableHeader } from "@/components/common/ResizableTable"
 import { useDisplaySettings } from "@/lib/displaySettings"
@@ -15,8 +16,13 @@ export function InventoryView({ result, yaml, isCurrent, error }: {
   const { formatNumber } = useDisplaySettings()
   const [expandedFlows, setExpandedFlows] = useState<Set<string>>(() => new Set())
   const [collapsedRequirements, setCollapsedRequirements] = useState<Set<string>>(() => new Set())
-  const [flowColumnWidths, setFlowColumnWidths] = useState([360, 280, 140, 100])
-  const [requirementColumnWidths, setRequirementColumnWidths] = useState([360, 280, 140, 100])
+  const phone = usePhoneLayout()
+  const desktopFlows = useState([360, 280, 140, 100])
+  const desktopRequirements = useState([360, 280, 140, 100])
+  const phoneFlows = useState([140, 160, 110, 80])
+  const phoneRequirements = useState([140, 160, 110, 80])
+  const [flowColumnWidths, setFlowColumnWidths] = phone ? phoneFlows : desktopFlows
+  const [requirementColumnWidths, setRequirementColumnWidths] = phone ? phoneRequirements : desktopRequirements
   if (!result || !isCurrent) return <div className="results-panel inventory-panel">
     <div className="results-panel-head"><div><strong>Inventory results</strong><span>Calculated quantities for the current product graph.</span></div></div>
     <div className="results-placeholder">
@@ -50,7 +56,7 @@ export function InventoryView({ result, yaml, isCurrent, error }: {
     })
     return candidates.sort((left, right) => right.length - left.length)[0] ?? []
   }
-  const renderFlowTable = (rows: typeof flows, empty: string) => <div className="inventory-table-wrap"><table className="inventory-table" style={{ width: Math.max(880, flowColumnWidths.reduce((sum, width) => sum + width, 0)) }}>
+  const renderFlowTable = (rows: typeof flows, empty: string) => <div className="inventory-table-wrap"><table className="inventory-table" style={{ width: Math.max(phone ? 0 : 880, flowColumnWidths.reduce((sum, width) => sum + width, 0)) }}>
     <ResizableTableHeader labels={["Name", "Category", "Amount", "Unit"]} widths={flowColumnWidths} onWidthsChange={setFlowColumnWidths} />
     <tbody>{rows.length ? rows.flatMap((flow) => {
       const key = `${flow.type}-${flow.name}`
@@ -97,7 +103,7 @@ export function InventoryView({ result, yaml, isCurrent, error }: {
     <details open><summary>Inputs <span>{inputs.length}</span></summary>{renderFlowTable(inputs, "No environmental input flows were returned.")}</details>
     <details open><summary>Outputs <span>{outputs.length}</span></summary>{renderFlowTable(outputs, "No environmental output flows were returned.")}</details>
     <details open className="requirements"><summary>Total requirements <span>{requirementGraph?.nodes.filter((node) => node.kind === "process").length ?? fallbackRequirements.length}</span></summary>
-      <div className="inventory-table-wrap"><table className="inventory-table" style={{ width: Math.max(880, requirementColumnWidths.reduce((sum, width) => sum + width, 0)) }}><ResizableTableHeader labels={["Process", "Product", "Amount", "Unit"]} widths={requirementColumnWidths} onWidthsChange={setRequirementColumnWidths} /><tbody>
+      <div className="inventory-table-wrap"><table className="inventory-table" style={{ width: Math.max(phone ? 0 : 880, requirementColumnWidths.reduce((sum, width) => sum + width, 0)) }}><ResizableTableHeader labels={["Process", "Product", "Amount", "Unit"]} widths={requirementColumnWidths} onWidthsChange={setRequirementColumnWidths} /><tbody>
         {requirementRoot ? renderRequirementRows([requirementRoot.id], 0) : fallbackRequirements.map((row) => <tr key={row.process}><td><span className="process-mark">⌘</span>{row.process}</td><td><span className="product-mark">⚙</span>{row.product}</td><td className="number">{formatNumber(row.amount)}</td><td>{row.unit}</td></tr>)}
       </tbody></table></div>
     </details>

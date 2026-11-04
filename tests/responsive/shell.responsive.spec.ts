@@ -1,5 +1,5 @@
 import { expect, test } from "@playwright/test"
-import { mockLcaApi, pageMetrics } from "./helpers"
+import { mockLcaApi, openPrimaryView, pageMetrics } from "./helpers"
 
 test.beforeEach(async ({ page }) => {
   await mockLcaApi(page)
@@ -23,14 +23,12 @@ test("application shell and primary graph controls load", async ({ page }) => {
   }
   await expect(page.locator('[aria-label="Current model: Copy of Jacket"]:visible')).toBeVisible()
   await expect(page.getByRole("button", { name: "File", exact: true })).toBeVisible()
-  await expect(page.getByRole("radio", { name: "Graph", exact: true })).toBeVisible()
-  await expect(page.getByRole("radio", { name: "Edit", exact: true })).toBeVisible()
-  const results = (page.viewportSize()?.width ?? 0) > 900
-    ? page.getByRole("button", { name: "Results", exact: true })
-    : page.getByRole("radio", { name: "Results", exact: true })
+  await openPrimaryView(page, "Edit")
+  await openPrimaryView(page, "Graph")
+  const results = page.getByRole("button", { name: page.viewportSize()!.width > 620 ? "Results" : "Open navigation", exact: true })
   await expect(results).toBeVisible()
   await expect(page.locator(".react-flow")).toBeVisible()
-  await expect(page.locator(".react-flow__node .pg-node").first()).toHaveCSS("font-size", "24px")
+  await expect(page.locator(".react-flow__node .pg-node").first()).toHaveCSS("font-size", page.viewportSize()!.width <= 620 ? "30px" : "24px")
 })
 
 test("desktop top bar items never overlap as the window narrows", async ({ page }) => {
@@ -105,7 +103,10 @@ test("welcome page opens the workspace and the PRISM logo returns home", async (
   await expect(page.getByRole("heading", { name: "Welcome to the Future of LCA" })).toBeVisible()
   await page.getByRole("button", { name: "Explore PRISM" }).click()
   await expect(page.locator(".react-flow")).toBeVisible()
-  await page.getByRole("button", { name: "Open PRISM welcome page" }).click()
+  if (page.viewportSize()!.width <= 620) {
+    await page.getByRole("button", { name: "Open navigation" }).click()
+    await page.getByRole("menuitem", { name: "Welcome", exact: true }).click()
+  } else await page.getByRole("button", { name: "Open PRISM welcome page" }).click()
   await expect(page.getByRole("heading", { name: "Welcome to the Future of LCA" })).toBeVisible()
   await expect(page.locator(".react-flow")).toBeHidden()
 })

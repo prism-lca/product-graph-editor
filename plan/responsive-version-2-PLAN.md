@@ -1,0 +1,216 @@
+# Plan: responsive version 2 (phone and tablet)
+
+8 October 2026. Branch `responsive-version-2`. Covers issue #80.
+
+This plan starts fresh from how the app looks today. It does not build on the
+earlier responsive plans in `plan/`.
+
+## Execution checkpoint (15 October 2026)
+
+The header stage is committed in `83ca658`. Stages 2–7 are implemented and
+verified on `responsive-version-2`. Keep this work local until the responsive
+version is complete and the user requests publication. Resuming verification also
+fixed Sankey settings focus restoration on Escape and the close button, with
+browser coverage for both paths. Workflow captures disable animations so the
+screenshots show settled layouts.
+
+Verification at 375 × 812, 768 × 1024, and 1440 × 900:
+
+- `npm run build`: passed (existing large-chunk advisory).
+- `npm run lint`: passed.
+- `npm run test:unit`: 117 passed.
+- `npm run test:responsive`: 88 passed, 2 skipped. Both skips are the
+  desktop-header overlap test at phone/tablet sizes. The chat test now exercises
+  overlays on narrow screens and resizing on desktop without skipping.
+- Focused version-two workflow rerun after the keyboard fix: 12 passed.
+- `npm run test:visual`: 66 passed, including dark and light snapshots against
+  unchanged baselines.
+
+Visually inspected phone property-editor, Sankey-settings, and impact-analysis
+captures, plus tablet and desktop property-editor captures. Browser workflows
+check navigation, contained overlays and tables, toolbar reachability, sheet
+resizing, panel exclusivity, guarded edits, and local phone orientation.
+
+### Follow-up mobile refinements
+
+- Main graph and Sankey toolbars use the compact tablet/desktop styling while
+  retaining their existing controls and drag handles. On phones they can sit
+  flush below the navbar, including while a graph activity is selected.
+- Phone global Settings now opens from the account menu instead of the
+  hamburger menu. Closing settings restores focus to the account button.
+- Build, lint, and 117 unit tests passed. The full responsive run after the
+  toolbar fixes passed 91 tests with the same 2 viewport-specific skips. The
+  subsequent account-settings workflow passed at all three supported sizes,
+  including theme changes and focus restoration.
+- The visual run passed 65 tests, including dark/light screenshots. One test
+  was disrupted by a development reload during the menu edit; its isolated
+  rerun passed. No screenshot baselines were changed.
+
+## Sizes
+
+The plan uses the three sizes from `playwright.responsive.config.ts`.
+
+| Size | Test viewport | Width range | Layout |
+| --- | --- | --- | --- |
+| Phone | 375 × 812 | 620px and below | New phone layout |
+| Tablet | 768 × 1024 | 621–900px | New tablet layout |
+| Desktop | 1440 × 900 | 901px and up | **Unchanged.** This is the reference. |
+
+These are the CSS breakpoints the app already uses (`max-width: 620px`,
+`max-width: 900px`), so no new breakpoints are needed.
+
+## How it looks today
+
+I checked every main screen at all three sizes in a browser: welcome, graph, a
+selected activity, graph settings, chat, Edit, Results, Impact analysis, Sankey,
+Sankey settings and the File menu. No page scrolls sideways at any size, and
+desktop looks right. Phone and tablet have the problems below.
+
+### Both phone and tablet
+
+1. **Two header bars.** A top bar (logo, settings, Log out, avatar) sits above a
+   second card with the model name, File and a row of 8 view tabs: Edit, Graph,
+   Results, Inventory, Impact Analysis, Process Results, Contribution, Sankey Graph.
+   Desktop has one bar with File, Edit, Graph and a Results menu. Together the two
+   bars take about 150px.
+2. **The Chat tab covers the content.** The sideways "Chat" tab on the right edge
+   sits on top of the view tabs and the page below them.
+3. **Activity details cover the tools.** Selecting an activity opens a "Node
+   details" panel over the left of the screen. It covers the graph toolbar and,
+   on phone, the whole screen and the view tabs.
+4. **The Sankey summary card covers the graph.** The "Impact category" card in the
+   bottom-left sits on top of the bottom Sankey nodes.
+5. **Two menus can be open at once.** With Sankey settings open, opening the File
+   menu leaves the settings panel open underneath.
+
+### Tablet only
+
+6. **The view tabs are cramped.** All 8 tabs share one row, so "Impact Analysis",
+   "Process Results" and "Sankey Graph" wrap onto two lines.
+7. **Opening chat breaks the header (the #80 screenshot).** Chat takes half the
+   screen as a side-by-side panel. The tab row is squeezed into the other half and
+   the labels draw on top of each other ("InventoryCo…", "File" over "Impact
+   Analysis").
+
+### Phone only
+
+8. **Some views are hidden.** The tab row scrolls sideways and the last tabs are
+   cut off at the edge ("P…"), with no hint that there is more.
+9. **Graph settings can't be reached with an activity selected.** The details
+   panel covers the screen. In the browser test, the Graph settings button could
+   not be clicked until the panel was closed.
+10. **The graph is too small to read.** The Jacket graph runs left to right, so
+    fitting it to a 375px-wide screen makes the activity cards unreadable.
+11. **Analysis views start under the header.** On Impact analysis, the title is
+    hidden behind the header card. "Sub-group by" wraps onto three lines, and the
+    "Don't show <" box is cut off at the right edge.
+12. **The Structure/Scaled switch is large** for a phone and sits at the bottom
+    where the thumb rests.
+
+Chat on phone already works: it opens full screen with its own close button.
+
+## Target design
+
+### Tablet (621–900px): the desktop layout, made narrower
+
+Tablet should look and work like desktop, so there is one design to learn and
+less code to maintain.
+
+- **One header bar, the same as desktop:** logo, model name (shortened with "…"
+  when long), File, Edit, Graph, a **Results ▾ menu** for the 6 result views,
+  settings, and the avatar. Log out moves into the avatar menu. This removes the
+  second bar and the 8-tab row (fixes 1, 6, 7).
+- **Chat opens over the page from the right**, at most 420px wide. It no longer
+  splits the screen, so the header and the view underneath keep their size
+  (fixes 7). Close it from its own button.
+- **The Property Editor slides in over the graph from the left**, about 300px
+  wide, when an activity is selected. The graph keeps its full width underneath.
+  While the panel is open, the graph toolbar moves into the part of the graph the
+  panel leaves uncovered, so it stays clickable (fixes 3). Tapping another card
+  shows that activity. The panel closes from its own button, with Escape, or when
+  you switch view.
+- **The Chat tab sits in the page margin**, as on desktop, not on top of the
+  content (fixes 2). The Properties tab is not needed, since the panel opens when
+  an activity is selected.
+- **The Sankey summary card collapses** to a small chip showing the category and
+  total. Tapping it opens the full card (fixes 4).
+
+### Phone (620px and below): built for one hand
+
+- **Top bar:** one slim row with a **menu button** (☰), the current view's name,
+  the model name, File and the avatar. The second header card and the tab row go
+  away, leaving the rest of the screen for the view (fixes 1).
+- **The menu button opens a panel listing every view:** Edit, Graph, then the 6
+  result views (the same list as the desktop Results menu), then Chat and
+  Settings. The current view is ticked. Every view is two taps away and nothing
+  is cut off (fixes 8). Chat stays full screen, and the right-edge Chat tab is
+  removed on phone (fixes 2).
+- **Activity details open as a bottom sheet.** It starts at half height and can be
+  dragged up to full height. The graph and toolbar above it stay usable, and
+  tapping another card switches the sheet to that activity (fixes 3, 9).
+- **Graph settings and Sankey settings also open as bottom sheets.**
+- **The graph runs top to bottom on phone.** Use the vertical orientation by
+  default on phone so the cards are readable after fit-to-screen. This is not
+  saved as the model's setting (fixes 10).
+- **Toolbar:** keep the horizontal bar but drop zoom in and zoom out, since
+  pinching does that. Move the Structure/Scaled switch into the toolbar as one
+  toggle button (fixes 12).
+- **Analysis views:** start below the top bar. Stack the controls (Sub-group by,
+  Don't show) on their own rows. Tables keep sideways scrolling inside their box,
+  with the first column fixed so row names stay visible (fixes 11).
+- **Sankey summary card:** collapsed chip, as on tablet (fixes 4).
+
+### All sizes
+
+- Opening a menu or panel closes any other open one (fixes 5).
+- Desktop must not change. The desktop visual tests are the check for that.
+
+## Stages
+
+Each stage is checked in a browser at 375, 768 and 1440px, then committed.
+
+1. **Header.** Tablet gets the single desktop-style bar with the Results menu.
+   Phone gets the slim top bar and the menu button with its view list. Log out
+   moves into the avatar menu. The tablet Chat tab moves into the margin.
+2. **Chat.** Opens over the page on tablet instead of splitting it. Phone is
+   unchanged.
+3. **Property Editor.** Slides over the graph on tablet, with the toolbar moving
+   clear of it; bottom sheet on phone.
+4. **Graph on phone.** Vertical by default, slimmer toolbar with the
+   Structure/Scaled toggle, graph settings as a bottom sheet.
+5. **Results and analysis views.** Content starts below the header, controls
+   stack on phone, first table column fixed.
+6. **Sankey.** Collapsible summary chip and, on phone, settings as a bottom sheet.
+7. **One menu at a time,** then clean up unused CSS from the old narrow layout.
+
+## Tests
+
+Run with `npm run test:responsive` (phone, tablet and desktop) and
+`npm run test:visual` (desktop).
+
+New checks at phone and tablet:
+
+- Every view can be opened by tapping (from the menu button on phone), and its
+  control is fully on screen.
+- The header never overlaps the view below it, with chat open or closed.
+- Selecting an activity leaves the graph toolbar and Graph settings clickable.
+- Every popover, menu and sheet stays inside the screen.
+- The Sankey summary does not cover any Sankey node while collapsed.
+- Only one menu or panel is open at a time.
+
+Existing tests that check the 8-tab row or the side-by-side chat at tablet size
+need rewriting. Any screenshot that changes is looked at before its baseline is
+updated, and desktop screenshots should not change at all.
+
+## Decisions (8 October 2026)
+
+1. **Phone navigation:** a menu button in the top bar, not a bottom tab bar.
+2. **Tablet Property Editor:** slides in over the graph, not docked.
+3. **Phone graph direction:** the graph runs top to bottom on phone.
+
+## Not in this plan
+
+- Any change to the desktop layout.
+- Landscape phones. They fall into the tablet layout by width; check them once
+  the tablet layout is done.
+- Touch gestures beyond what React Flow already does (pinch zoom, drag to pan).

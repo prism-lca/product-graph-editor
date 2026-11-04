@@ -12,7 +12,7 @@ import remarkGfm from "remark-gfm"
 import prismLogoRound from "./assets/prism-logo-round.png"
 import {
   BarChart3, Check, ChevronLeft, GripVertical, MessageSquare, Scan, LayoutGrid, ChevronDown,
-  Minus, Moon, MousePointer2, Plus, Settings2, Sun, X,
+  Menu, Minus, Moon, MousePointer2, Plus, Settings2, Sun, X,
 } from "lucide-react"
 import { parse } from "yaml"
 import { Button } from "@/components/ui/button"
@@ -54,6 +54,8 @@ import { useCalculation } from "@/hooks/useCalculation"
 import { GraphCanvas } from "@/components/graph/GraphCanvas"
 import { Inspector } from "@/components/graph/Inspector"
 import { useDockedEditor } from "@/hooks/useDockedEditor"
+import { usePhoneLayout } from "@/hooks/usePhoneLayout"
+import { useWorkspacePanel } from "@/hooks/useWorkspacePanel"
 import { ScenarioPanel } from "@/components/graph/ScenarioPanel"
 import { useGraphModel } from "@/hooks/useGraphModel"
 import { useDraggablePosition } from "@/hooks/useDraggablePosition"
@@ -65,20 +67,20 @@ import { DisplaySettingsProvider, useDisplaySettings } from "./lib/displaySettin
 import {
   selectHasCurrentResults,
   useProductGraphStore,
-  type ProductGraphView as View,
 } from "./state/productGraphStore"
 type NodeMeta = { label: string; kind: string; detail: string; color: string; scope?: "foreground" | "background" }
-type AnalysisView = Extract<View, "inventory" | "impact" | "process" | "contribution" | "sankey">
 
 
 
 
 const EDITOR_COLLAPSED_STORAGE = "product-graph-editor:property-editor-collapsed"
+const destinations = [["yaml", "Edit"], ["graph", "Graph"], ["results", "LCA results"], ["inventory", "Inventory"], ["impact", "Impact analysis"], ["process", "Process results"], ["contribution", "Contributions"], ["sankey", "Sankey"]] as const
 
 /** The framed graph canvas; the graph tool bar cannot be dragged outside it. */
 const graphCanvasElement = () => document.querySelector<HTMLElement>(".graph-viewport")
 
-function GraphEditor({ onTitleChange, navbarTarget, chatPortalTarget, active, chatOpen, onChatOpenChange, teamRoomOpen, onTeamRoomOpenChange }: { onTitleChange: (title: string) => void; navbarTarget: HTMLDivElement | null; chatPortalTarget: HTMLDivElement | null; active: boolean; chatOpen: boolean; onChatOpenChange: (open: boolean) => void; teamRoomOpen: boolean; onTeamRoomOpenChange: (open: boolean) => void }) {
+function GraphEditor({ onTitleChange, navbarTarget, chatPortalTarget, active, chatOpen, onChatOpenChange, teamRoomOpen, onTeamRoomOpenChange, onWelcomeOpen }: { onTitleChange: (title: string) => void; navbarTarget: HTMLDivElement | null; chatPortalTarget: HTMLDivElement | null; active: boolean; chatOpen: boolean; onChatOpenChange: (open: boolean) => void; teamRoomOpen: boolean; onTeamRoomOpenChange: (open: boolean) => void; onWelcomeOpen: () => void }) {
+  const phone = usePhoneLayout()
   const { decimalPlaces, showAllDecimalPlaces, theme } = useDisplaySettings()
   const selected = useProductGraphStore((state) => state.selectedNode)
   const view = useProductGraphStore((state) => state.activeView)
@@ -95,12 +97,16 @@ function GraphEditor({ onTitleChange, navbarTarget, chatPortalTarget, active, ch
   const calculatedRevision = useProductGraphStore((state) => state.calculatedRevision)
   const graphMode = useProductGraphStore((state) => state.graphMode)
   const showReferenceAmounts = useProductGraphStore((state) => state.showReferenceAmounts)
-  const [graphSettingsOpen, setGraphSettingsOpen] = useState(false)
+  const [graphSettingsOpen, setGraphSettingsOpen] = useWorkspacePanel()
+  const [navigationOpen, setNavigationOpen] = useWorkspacePanel()
+  const [resultsMenuOpen, setResultsMenuOpen] = useWorkspacePanel()
   const [clearSessionOpen, setClearSessionOpen] = useState(false)
   const [selectMode, setSelectMode] = useState(false)
-  const { position: graphToolbarPosition, startDrag: startGraphToolbarDrag, reset: resetGraphToolbar, panelRef: graphToolbarRef } = useDraggablePosition("product-graph-editor:graph-toolbar-position-in-frame", { container: graphCanvasElement })
+  const { position: graphToolbarPosition, startDrag: startGraphToolbarDrag, reset: resetGraphToolbar, panelRef: graphToolbarRef } = useDraggablePosition("product-graph-editor:graph-toolbar-position-in-frame", { container: graphCanvasElement, topMargin: phone ? 0 : undefined })
   const graphMaxProcesses = useProductGraphStore((state) => state.graphMaxProcesses)
-  const graphOrientation = useProductGraphStore((state) => state.graphOrientation)
+  const savedGraphOrientation = useProductGraphStore((state) => state.graphOrientation)
+  const [phoneOrientation, setPhoneOrientation] = useState<"vertical" | "horizontal">("vertical")
+  const graphOrientation = phone ? phoneOrientation : savedGraphOrientation
   const graphConnectionStyle = useProductGraphStore((state) => state.graphConnectionStyle)
   const storeActions = useProductGraphStore((state) => state.actions)
   const {
@@ -109,11 +115,14 @@ function GraphEditor({ onTitleChange, navbarTarget, chatPortalTarget, active, ch
     clearNodeSelection,
     setReferenceAmountsVisible,
     setGraphMaxProcesses,
-    setGraphOrientation,
     setGraphConnectionStyle,
     dispatchWorkspace: dispatchModelWorkspace,
     resetScenario,
   } = storeActions
+  const setGraphOrientation = (orientation: "vertical" | "horizontal") => {
+    if (phone) setPhoneOrientation(orientation)
+    else storeActions.setGraphOrientation(orientation)
+  }
   const inspectorOpen = selected !== null
   const { getViewport, setViewport } = useReactFlow()
   const lastSelectedRef = useRef<(NodeMeta & { id: string }) | null>(null)
@@ -137,6 +146,7 @@ function GraphEditor({ onTitleChange, navbarTarget, chatPortalTarget, active, ch
     undo, redo, captureDraftVersion,
     categoryTotals, visibleImpactCategories, toggleImpactCategory, categoryOrder, compactToteLayout,
   } = useGraphModel({
+    graphOrientation,
     resetCalculationState, markRevision, calculateSource,
     onResultsMarkdown: setResultsMarkdown, loadContributionGraphs,
   })
@@ -207,6 +217,9 @@ function GraphEditor({ onTitleChange, navbarTarget, chatPortalTarget, active, ch
   // be collapsed to a strip, except while a scenario edit is live (its scores
   // and Reset/Save must stay visible). Narrow layouts keep the click overlay.
   const dockedEditor = useDockedEditor()
+  useEffect(() => {
+    if (!dockedEditor && view !== "graph") clearNodeSelection()
+  }, [clearNodeSelection, dockedEditor, view])
   const [editorCollapsed, setEditorCollapsed] = useState(() => {
     try { return localStorage.getItem(EDITOR_COLLAPSED_STORAGE) === "true" } catch { return false }
   })
@@ -237,12 +250,12 @@ function GraphEditor({ onTitleChange, navbarTarget, chatPortalTarget, active, ch
       const overlapsHorizontally = node.right > editor.left - clearance && node.left < editor.right + clearance
       if (!overlapsVertically || !overlapsHorizontally) return
       const editorOnRight = editor.left + editor.width / 2 > window.innerWidth / 2
-      const dx = editorOnRight ? editor.left - clearance - node.right : editor.right + clearance - node.left
+      const dx = phone ? 0 : editorOnRight ? editor.left - clearance - node.right : editor.right + clearance - node.left
       const { x, y, zoom } = getViewport()
-      void setViewport({ x: x + dx, y, zoom }, { duration: 250 })
+      void setViewport({ x: x + dx, y: phone ? y + editor.top - clearance - node.bottom : y, zoom }, { duration: 250 })
     }, 300)
     return () => window.clearTimeout(timer)
-  }, [active, dockedEditor, getViewport, selectedId, setViewport, view])
+  }, [active, dockedEditor, getViewport, phone, selectedId, setViewport, view])
   // Two undo scopes exist and must not fight. The browser gives text inputs
   // per-keystroke undo for free; model undo steps between recorded versions.
   // Focus decides which one Cmd+Z drives, which also leaves the chat
@@ -445,6 +458,19 @@ function GraphEditor({ onTitleChange, navbarTarget, chatPortalTarget, active, ch
   return (
     <>
       {navbarTarget ? createPortal(<div className="desktop-navbar" aria-label="Application navigation">
+        {phone ? <>
+          <DropdownMenu open={navigationOpen} onOpenChange={setNavigationOpen}>
+            <DropdownMenuTrigger asChild><Button variant="ghost" size="icon" aria-label="Open navigation"><Menu /></Button></DropdownMenuTrigger>
+            <DropdownMenuContent align="start" className="phone-navigation">
+              <DropdownMenuGroup>
+                {destinations.map(([destination, label]) => <DropdownMenuItem key={destination} aria-current={view === destination ? "page" : undefined} disabled={!["yaml", "graph", "results"].includes(destination) && !hasCurrentResults} onSelect={() => requestView(destination)}>{label}{view === destination ? <Check /> : null}</DropdownMenuItem>)}
+                <DropdownMenuItem onSelect={() => onChatOpenChange(true)}>Chat</DropdownMenuItem>
+                <DropdownMenuItem onSelect={onWelcomeOpen}>Welcome</DropdownMenuItem>
+              </DropdownMenuGroup>
+            </DropdownMenuContent>
+          </DropdownMenu>
+          <span className="phone-view-title">{destinations.find(([destination]) => destination === view)?.[1]}</span>
+        </> : null}
         <CurrentModelTitle title={currentModelTitle} className="navbar-model-title" onRename={activeDocument?.kind === "session" ? renameActiveDocument : undefined} />
         <div className="desktop-navbar-menus">
         <FileMenu
@@ -472,7 +498,7 @@ function GraphEditor({ onTitleChange, navbarTarget, chatPortalTarget, active, ch
           <ToggleGroupItem value="yaml">Edit</ToggleGroupItem>
           <ToggleGroupItem value="graph">Graph</ToggleGroupItem>
         </ToggleGroup>
-        <DropdownMenu>
+        <DropdownMenu open={resultsMenuOpen} onOpenChange={setResultsMenuOpen}>
           <DropdownMenuTrigger asChild>
             <Button className={`navbar-menu-trigger${analysisView || primaryView === "results" ? " is-active" : ""}`} variant="ghost" size="sm" aria-label="Results">Results<ChevronDown data-icon="inline-end" /></Button>
           </DropdownMenuTrigger>
@@ -500,51 +526,6 @@ function GraphEditor({ onTitleChange, navbarTarget, chatPortalTarget, active, ch
         </div>
       </div>, navbarTarget) : null}
       <div className={`canvas-wrap${railCollapsed ? " is-rail-collapsed" : ""}`}>
-        <div className="canvas-head">
-          <div className="canvas-actions">
-            <div className="view-tabs">
-              <div className="navigation-model-group">
-                <CurrentModelTitle title={currentModelTitle} className="navigation-model-title" onRename={activeDocument?.kind === "session" ? renameActiveDocument : undefined} />
-                <FileMenu
-                  activeDocument={activeDocument}
-                  templates={templates}
-                  sessionDocuments={sessionDocuments}
-                  canSave={canSave}
-                  canSaveAs={canSaveAs}
-                  canDownload={canDownload}
-                  onNew={() => requestAction({ kind: "new" })}
-                  onSelectTemplate={(id) => requestAction({ kind: "template", id })}
-                  onSelectSession={(id) => requestAction({ kind: "session", id })}
-                  onSave={saveSessionModel}
-                  onSaveAs={openSaveAsDialog}
-                  onUpload={() => requestAction({ kind: "upload" })}
-                  onDownload={downloadCurrentYaml}
-                  onClearSession={() => setClearSessionOpen(true)}
-                  onDeleteSession={(id) => dispatchModelWorkspace({ type: "delete-session", id })}
-                  versions={versions}
-                  documentSnapshot={documentSnapshot}
-                  onRestoreVersion={restoreVersion}
-                />
-              </div>
-              {calculationInProgress ? <span className="calculation-message" role="status" aria-label="LCA calculation in progress">Calculating…</span>
-                : backgroundProcessing ? <span className="calculation-message" role="status" aria-label="Background graph processing">Processing…</span> : null}
-              <div className="view-tab-groups">
-                <ToggleGroup type="single" value={primaryView} onValueChange={(next) => next && requestView(next as "graph" | "yaml" | "results")} className="inline-flex items-center" aria-label="Primary views">
-                  <ToggleGroupItem value="yaml">Edit</ToggleGroupItem>
-                  <ToggleGroupItem value="graph">Graph</ToggleGroupItem>
-                  <ToggleGroupItem value="results" aria-label="Results">Results</ToggleGroupItem>
-                </ToggleGroup>
-                <ToggleGroup type="single" value={analysisView} onValueChange={(next) => next && requestView(next as AnalysisView)} className="inline-flex items-center" aria-label="Result analysis views">
-                  <ToggleGroupItem value="inventory" disabled={!hasCurrentResults}>Inventory</ToggleGroupItem>
-                  <ToggleGroupItem value="impact" disabled={!hasCurrentResults}>Impact Analysis</ToggleGroupItem>
-                  <ToggleGroupItem value="process" disabled={!hasCurrentResults}>Process Results</ToggleGroupItem>
-                  <ToggleGroupItem value="contribution" disabled={!hasCurrentResults}>Contribution</ToggleGroupItem>
-                  <ToggleGroupItem value="sankey" disabled={!hasCurrentResults}>Sankey Graph</ToggleGroupItem>
-                </ToggleGroup>
-              </div>
-            </div>
-          </div>
-        </div>
         {view === "graph" ? <><GraphCanvas
           nodes={nodes} edges={edges}
           onNodesChange={onNodesChange} onEdgesChange={onEdgesChange}
@@ -555,7 +536,7 @@ function GraphEditor({ onTitleChange, navbarTarget, chatPortalTarget, active, ch
           hydrateBackgroundNode={hydrateBackgroundNode}
           selectMode={selectMode}
         >
-          <div ref={graphToolbarRef} className="graph-toolbar is-horizontal" data-draggable-panel aria-label="Graph tools" style={graphToolbarPosition ? { position: "fixed", left: graphToolbarPosition.left, top: graphToolbarPosition.top, transform: "none" } : undefined}>
+          <div ref={graphToolbarRef} className="graph-toolbar is-horizontal" data-draggable-panel aria-label="Graph tools" style={graphToolbarPosition && (phone || dockedEditor || !selected) ? { position: "fixed", left: graphToolbarPosition.left, top: graphToolbarPosition.top, transform: "none" } : undefined}>
             <button type="button" className="toolbar-grip" aria-label="Move graph toolbar" title="Drag to move. Double-click to centre." onPointerDown={startGraphToolbarDrag} onDoubleClick={resetGraphToolbar}><GripVertical size={14} /></button>
             <div className="toolbar-group">
               <Popover modal open={graphSettingsOpen} onOpenChange={setGraphSettingsOpen}>
@@ -569,6 +550,7 @@ function GraphEditor({ onTitleChange, navbarTarget, chatPortalTarget, active, ch
                 </Tooltip>
                 <PopoverContent
                   className="graph-settings-picker"
+                  aria-label="Graph settings"
                   side="bottom"
                   align="start"
                   sideOffset={11}
@@ -594,10 +576,11 @@ function GraphEditor({ onTitleChange, navbarTarget, chatPortalTarget, active, ch
               <ToolButton tooltipSide="bottom" label="Auto layout" onClick={relayout}><LayoutGrid size={18} /></ToolButton>
               <ToolButton tooltipSide="bottom" label="Fit graph" onClick={fit}><Scan size={18} /></ToolButton>
             </div>
-            <div className="toolbar-group">
+            <div className="toolbar-group graph-zoom-tools">
               <ToolButton tooltipSide="bottom" label="Zoom in" onClick={() => zoomIn({ duration: 200 })}><Plus size={18} /></ToolButton>
               <ToolButton tooltipSide="bottom" label="Zoom out" onClick={() => zoomOut({ duration: 200 })}><Minus size={18} /></ToolButton>
             </div>
+            {phone ? <div className="toolbar-group"><ToolButton tooltipSide="bottom" label={graphMode === "scaled" ? "Show structure graph" : "Show scaled graph"} pressed={graphMode === "scaled"} onClick={() => { if (graphMode === "scaled" || hasCurrentResults) showGraphMode(graphMode === "scaled" ? "structure" : "scaled") }}><Scan size={18} /></ToolButton></div> : null}
           </div>
           <div className="graph-mode-toolbar" aria-label="Graph display mode">
             <Button title={!hasCurrentResults ? "Scaled amounts will appear when the LCA calculation finishes" : undefined} variant="ghost" className={`graph-action ${graphMode === "scaled" ? "is-active" : ""}`} aria-pressed={graphMode === "scaled"} disabled={!hasCurrentResults} onClick={() => showGraphMode("scaled")}><Scan size={16} />Scaled Graph</Button>
@@ -717,9 +700,12 @@ function GraphEditor({ onTitleChange, navbarTarget, chatPortalTarget, active, ch
 }
 
 function AppContent({ user, signOut }: { user: User; signOut: () => Promise<void> }) {
+  const phone = usePhoneLayout()
+  const docked = useDockedEditor()
   const [welcomeOpen, setWelcomeOpen] = useState(true)
-  const [settingsOpen, setSettingsOpen] = useState(false)
-  const [chatOpen, setChatOpen] = useState(false)
+  const [settingsOpen, setSettingsOpen] = useWorkspacePanel()
+  const [chatOpen, setChatOpen] = useWorkspacePanel()
+  const [accountOpen, setAccountOpen] = useWorkspacePanel()
   const [teamRoomOpen, setTeamRoomOpen] = useState(false)
   const [workspaceTitle, setWorkspaceTitle] = useState("Loading product graphs…")
   const [navbarTarget, setNavbarTarget] = useState<HTMLDivElement | null>(null)
@@ -739,7 +725,12 @@ function AppContent({ user, signOut }: { user: User; signOut: () => Promise<void
               <PopoverTrigger asChild>
                 <Button variant="ghost" className={`global-settings-trigger ${settingsOpen ? "is-active" : ""}`} type="button" aria-label="Global settings"><Settings2 size={16} /><span>Settings</span></Button>
               </PopoverTrigger>
-              <PopoverContent className="global-settings-panel" side="bottom" align="end" sideOffset={3}>
+              <PopoverContent className="global-settings-panel" side="bottom" align="end" sideOffset={3} onCloseAutoFocus={(event) => {
+                if (window.innerWidth <= 620) {
+                  event.preventDefault()
+                  document.querySelector<HTMLButtonElement>('[aria-label="Account menu"]')?.focus()
+                }
+              }}>
                 <div className="global-settings-title"><div><Settings2 size={15} /><span>Global settings</span></div><Button variant="ghost" size="icon" type="button" onClick={() => setSettingsOpen(false)} aria-label="Close global settings"><X size={15} /></Button></div>
                 <div className="global-setting-field">
                   <span>Decimal places</span>
@@ -762,11 +753,11 @@ function AppContent({ user, signOut }: { user: User; signOut: () => Promise<void
                 </div> : null}
               </PopoverContent>
             </Popover>
-            <Button variant="ghost" className="logout-trigger" type="button" onClick={() => void signOut()}>Log out</Button>
-            <div className="user-account" title={[user.user_metadata.full_name, user.email].filter(Boolean).join(" · ")}>
+            {docked ? <Button variant="ghost" className="logout-trigger" type="button" onClick={() => void signOut()}>Log out</Button> : null}
+            <DropdownMenu open={accountOpen} onOpenChange={setAccountOpen}><DropdownMenuTrigger asChild><button type="button" aria-label="Account menu" className="user-account" title={[user.user_metadata.full_name, user.email].filter(Boolean).join(" · ")}>
               {user.user_metadata.avatar_url ? <img src={user.user_metadata.avatar_url} alt="" referrerPolicy="no-referrer" /> : <span>{(user.user_metadata.full_name ?? user.email ?? "?").slice(0, 1).toUpperCase()}</span>}
               <div><strong>{user.user_metadata.full_name ?? "Signed in"}</strong><small>{user.email}</small></div>
-            </div>
+            </button></DropdownMenuTrigger><DropdownMenuContent align="end" onCloseAutoFocus={(event) => { if (settingsOpen) event.preventDefault() }}><DropdownMenuGroup><DropdownMenuLabel>{user.email}</DropdownMenuLabel>{phone ? <DropdownMenuItem onSelect={() => setSettingsOpen(true)}>Settings</DropdownMenuItem> : null}<DropdownMenuItem onSelect={() => void signOut()}>Log out</DropdownMenuItem></DropdownMenuGroup></DropdownMenuContent></DropdownMenu>
           </div>
           </header>
           {/* The chat sits on the left, under the navbar, beside the workspace. */}
@@ -778,7 +769,7 @@ function AppContent({ user, signOut }: { user: User; signOut: () => Promise<void
 
           <section className="workspace" hidden={welcomeOpen}>
             <ReactFlowProvider>
-              <GraphEditor onTitleChange={setWorkspaceTitle} navbarTarget={navbarTarget} chatPortalTarget={chatPortalTarget} active={!welcomeOpen} chatOpen={chatOpen} onChatOpenChange={setChatOpen} teamRoomOpen={teamRoomOpen} onTeamRoomOpenChange={setTeamRoomOpen} />
+              <GraphEditor onTitleChange={setWorkspaceTitle} navbarTarget={navbarTarget} chatPortalTarget={chatPortalTarget} active={!welcomeOpen} chatOpen={chatOpen} onChatOpenChange={setChatOpen} teamRoomOpen={teamRoomOpen} onTeamRoomOpenChange={setTeamRoomOpen} onWelcomeOpen={() => setWelcomeOpen(true)} />
             </ReactFlowProvider>
           </section>
         </div>

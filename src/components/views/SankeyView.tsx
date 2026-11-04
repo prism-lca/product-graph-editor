@@ -5,7 +5,11 @@ import {
   ReactFlow, Background, BackgroundVariant, Handle, Position, SelectionMode, getNodesBounds,
   useNodesState, useEdgesState, type Edge, type Node, type NodeProps, type ReactFlowInstance,
 } from "@xyflow/react"
-import { BarChart3, Component, GripVertical, LayoutGrid, Minus, MousePointer2, Plus, Scan, Settings2 } from "lucide-react"
+import { BarChart3, Component, GripVertical, LayoutGrid, Minus, MousePointer2, Plus, Scan, Settings2, X } from "lucide-react"
+import { usePhoneLayout } from "@/hooks/usePhoneLayout"
+import { useDockedEditor } from "@/hooks/useDockedEditor"
+import { useWorkspacePanel } from "@/hooks/useWorkspacePanel"
+import { Button } from "@/components/ui/button"
 import { AppSelect, ToolButton } from "@/components/common/AppControls"
 import { useDraggablePosition } from "@/hooks/useDraggablePosition"
 import { NumberStepper } from "@/components/NumberStepper"
@@ -59,14 +63,21 @@ export function SankeyView({ result, loadContributionGraphs }: {
   const [flow, setFlow] = useState("")
   const [impact, setImpact] = useState("")
   const [layoutVersion, setLayoutVersion] = useState(0)
-  const [chartPickerOpen, setChartPickerOpen] = useState(false)
+  const [chartPickerOpen, setChartPickerOpen] = useWorkspacePanel()
+  const [summaryOpen, setSummaryOpen] = useWorkspacePanel()
+  const desktop = useDockedEditor()
+  const phone = usePhoneLayout()
+  const settingsRef = useRef<HTMLDivElement>(null)
+  useEffect(() => {
+    if (chartPickerOpen && !desktop) settingsRef.current?.focus()
+  }, [chartPickerOpen, desktop])
   const [minContribution, setMinContribution] = useState(0)
   const [maxProcesses, setMaxProcesses] = useState(availableProcessCount)
   const [orientation, setOrientation] = useState<"vertical" | "horizontal">("vertical")
   const [connectionStyle, setConnectionStyle] = useState<"curved" | "straight" | "step">("curved")
   const [selectedProcessId, setSelectedProcessId] = useState<string | null>(null)
   const [selectMode, setSelectMode] = useState(false)
-  const { position: toolbarPosition, startDrag: startToolbarDrag, reset: resetToolbar, panelRef: sankeyToolbarRef } = useDraggablePosition("product-graph-editor:sankey-toolbar-position-horizontal", { container: sankeyViewElement, topLimit: navbarBottom })
+  const { position: toolbarPosition, startDrag: startToolbarDrag, reset: resetToolbar, panelRef: sankeyToolbarRef } = useDraggablePosition("product-graph-editor:sankey-toolbar-position-horizontal", { container: sankeyViewElement, topLimit: navbarBottom, topMargin: phone ? 0 : undefined })
   const instanceRef = useRef<ReactFlowInstance<Node<SankeyProcessNodeData>, Edge> | null>(null)
   const [renderedNodes, setRenderedNodes, onSankeyNodesChange] = useNodesState<Node<SankeyProcessNodeData>>([])
   const [renderedEdges, setRenderedEdges, onSankeyEdgesChange] = useEdgesState<Edge>([])
@@ -421,8 +432,14 @@ export function SankeyView({ result, loadContributionGraphs }: {
     if (bounds.width && bounds.height) void instance.fitBounds(bounds, { padding: 0.15, duration: 300 })
   }
 
+  const closeChartSettings = () => {
+    setChartPickerOpen(false)
+    sankeyToolbarRef.current?.querySelector<HTMLButtonElement>('[aria-label="Chart settings"]')?.focus()
+  }
+
   return <div className="sankey-view">
-    {chartPickerOpen ? <div className="sankey-chart-picker">
+    {chartPickerOpen ? <div ref={settingsRef} tabIndex={-1} role="dialog" aria-label="Sankey settings" className="sankey-chart-picker" onKeyDown={(event) => { if (event.key === "Escape") { event.stopPropagation(); closeChartSettings() } }}>
+      {!desktop ? <div className="graph-settings-title"><strong>Sankey settings</strong><Button variant="ghost" size="icon" aria-label="Close Sankey settings" onClick={closeChartSettings}><X /></Button></div> : null}
       <ToggleGroup type="single" value={mode} onValueChange={(value) => {
         if (!value) return
         const nextMode = value as "flow" | "impact"
@@ -475,7 +492,7 @@ export function SankeyView({ result, loadContributionGraphs }: {
     </div>
     {totalMagnitude && !impactGraphPending ? <div ref={sankeyToolbarRef} className="graph-toolbar sankey-toolbar is-horizontal" data-draggable-panel aria-label="Sankey graph tools" style={toolbarPosition ? { position: "fixed", left: toolbarPosition.left, top: toolbarPosition.top, transform: "none" } : undefined}>
       <button type="button" className="toolbar-grip" aria-label="Move Sankey toolbar" title="Drag to move. Double-click to centre." onPointerDown={startToolbarDrag} onDoubleClick={resetToolbar}><GripVertical size={14} /></button>
-      <div className="toolbar-group"><ToolButton label="Chart settings" onClick={() => setChartPickerOpen((open) => !open)}><Settings2 size={18} /></ToolButton></div>
+      <div className="toolbar-group"><ToolButton label="Chart settings" onClick={() => setChartPickerOpen(!chartPickerOpen)}><Settings2 size={18} /></ToolButton></div>
       <div className="toolbar-group"><ToolButton label="Select nodes (hold Alt and drag to zoom to an area)" pressed={selectMode} onClick={() => setSelectMode((current) => !current)}><MousePointer2 size={18} /></ToolButton></div>
       <div className="toolbar-group">
         <ToolButton label="Auto layout" onClick={() => setLayoutVersion((value) => value + 1)}><LayoutGrid size={18} /></ToolButton>
@@ -486,7 +503,8 @@ export function SankeyView({ result, loadContributionGraphs }: {
         <ToolButton label="Zoom out" onClick={() => instanceRef.current?.zoomOut({ duration: 200 })}><Minus size={18} /></ToolButton>
       </div>
     </div> : null}
-    <div className="sankey-selection-summary" aria-label="Active Sankey settings">
+    {!desktop ? <button className="sankey-summary-chip" type="button" aria-label="Toggle Sankey summary" aria-expanded={summaryOpen} onClick={() => setSummaryOpen(!summaryOpen)}><span>{mode === "impact" ? impactCategoryDisplayName(selectedImpact) : inventoryFlowName(selectedFlow)}</span><strong>{format(selectedTotal)} {unit}</strong></button> : null}
+    <div className="sankey-selection-summary" aria-label="Active Sankey settings" hidden={!desktop && !summaryOpen}>
       <div className="sankey-selection-title">
         {mode === "impact" ? <BarChart3 size={14} /> : <span className="flow-dot output" />}
         <span>{mode === "impact" ? "Impact category" : "Flow"}</span>

@@ -13,6 +13,7 @@ import {
 } from "@/lib/realtimeScore"
 import { selectDocumentSnapshot, useProductGraphStore } from "@/state/productGraphStore"
 import { redoTarget, undoTarget } from "@/lib/versionHistory"
+import { usePhoneLayout } from "@/hooks/usePhoneLayout"
 
 const initialEdges: Edge[] = []
 const initialNodes: Node<ProcessNodeData>[] = []
@@ -29,12 +30,14 @@ const initialNodes: Node<ProcessNodeData>[] = []
  * parses. useModelWorkspace receives the setter.
  */
 export function useGraphModel({
+  graphOrientation,
   resetCalculationState,
   markRevision,
   calculateSource,
   onResultsMarkdown,
   loadContributionGraphs,
 }: {
+  graphOrientation: "vertical" | "horizontal"
   resetCalculationState: () => void
   markRevision: (revision: number) => void
   calculateSource: (source: string, revision: number, openGraphWhenReady?: boolean) => void | Promise<void>
@@ -56,13 +59,13 @@ export function useGraphModel({
   const lcaResult = useProductGraphStore((state) => state.lcaResult)
   const graphMode = useProductGraphStore((state) => state.graphMode)
   const graphMaxProcesses = useProductGraphStore((state) => state.graphMaxProcesses)
-  const graphOrientation = useProductGraphStore((state) => state.graphOrientation)
   const graphConnectionStyle = useProductGraphStore((state) => state.graphConnectionStyle)
   const activeDocument = useProductGraphStore((state) => state.workspace.activeDocument)
   const selected = useProductGraphStore((state) => state.selectedNode)
   const scenarioOverrides = useProductGraphStore((state) => state.scenarioOverrides)
   const scenarioCommitRevision = useProductGraphStore((state) => state.scenarioCommitRevision)
-  const compactToteLayout = activeDocument?.title.toLowerCase().includes("cotton tote bag") ?? false
+  const phone = usePhoneLayout()
+  const compactToteLayout = phone || (activeDocument?.title.toLowerCase().includes("cotton tote bag") ?? false)
   const {
     applySource, applyScenarioSource, setGraphMode, setGraphMaxProcesses, setReferenceAmountsVisible,
     requestViewChange: setView, setScenarioOverride, dispatchWorkspace,
@@ -85,10 +88,13 @@ export function useGraphModel({
   // without re-running on every render or fighting a manual drag in between.
   const nodesInitialized = useNodesInitialized()
   const wasNodesInitializedRef = useRef(false)
+  const previousLayout = useRef({ graphOrientation, compactToteLayout })
   useEffect(() => {
-    if (nodesInitialized && !wasNodesInitializedRef.current) {
+    const layoutChanged = previousLayout.current.graphOrientation !== graphOrientation || previousLayout.current.compactToteLayout !== compactToteLayout
+    if (nodesInitialized && (!wasNodesInitializedRef.current || layoutChanged)) {
       setNodes((current) => layoutNodes(current, edgesRef.current, { orientation: graphOrientation, compact: compactToteLayout }))
     }
+    previousLayout.current = { graphOrientation, compactToteLayout }
     wasNodesInitializedRef.current = nodesInitialized
   }, [compactToteLayout, graphOrientation, nodesInitialized, setNodes])
 

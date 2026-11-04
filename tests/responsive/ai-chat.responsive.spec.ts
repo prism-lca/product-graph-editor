@@ -1,5 +1,5 @@
 import { expect, test, type Page, type Route } from "@playwright/test"
-import { expectInsideViewport, mockLcaApi, pageMetrics } from "./helpers"
+import { expectInsideViewport, mockLcaApi, openChat, pageMetrics } from "./helpers"
 
 function sse(route: Route, chunks: unknown[]) {
   return route.fulfill({
@@ -51,11 +51,11 @@ async function mockNavigationAssistant(page: Page) {
 }
 
 async function configureChat(page: Page) {
-  await page.getByRole("button", { name: "AI assistant" }).click()
+  await openChat(page)
   const chat = page.getByRole("complementary", { name: "PRISM assistant" })
   await expect(chat).toBeVisible()
   await expect(page.locator('[data-slot="dialog-overlay"]')).toHaveCount(0)
-  await expect(page.getByRole("radio", { name: "Graph", exact: true })).toBeVisible()
+  await expect(page.locator(".graph-viewport")).toBeVisible()
   await page.getByRole("button", { name: "Chat settings" }).click()
   await page.getByLabel("OpenRouter API key").fill("test-key")
   await page.getByRole("button", { name: "Save settings" }).click()
@@ -130,7 +130,7 @@ test("chat settings persist the API key across reload", async ({ page }) => {
   await configureChat(page)
   await page.reload()
   await page.getByRole("button", { name: "Explore PRISM" }).click()
-  await page.getByRole("button", { name: "AI assistant" }).click()
+  await openChat(page)
   await page.getByRole("button", { name: "Chat settings" }).click()
   await expect(page.getByLabel("OpenRouter API key")).toHaveValue("test-key")
 })
@@ -295,14 +295,19 @@ test("assistant follows new messages to the bottom", async ({ page }) => {
   await expect.poll(() => viewport.evaluate((element) => Math.round(element.scrollHeight - element.scrollTop - element.clientHeight))).toBeLessThanOrEqual(2)
 })
 
-test("assistant split pane resizes the workspace", async ({ page }) => {
-  test.skip((page.viewportSize()?.width ?? 0) <= 620, "Phone chat uses the full contained width.")
+test("assistant overlays narrow screens and resizes the desktop workspace", async ({ page }) => {
   const workspace = page.locator(".workspace")
   const fullWorkspace = await workspace.boundingBox()
   await configureChat(page)
   const chat = page.getByRole("complementary", { name: "PRISM assistant" })
   const before = await chat.boundingBox()
   const workspaceBefore = await workspace.boundingBox()
+  if (page.viewportSize()!.width <= 900) {
+    expect(workspaceBefore!.width).toBe(fullWorkspace!.width)
+    await expectInsideViewport(chat, page)
+    await expect(page.getByRole("button", { name: "Resize AI assistant" })).toBeHidden()
+    return
+  }
   const handle = page.getByRole("button", { name: "Resize AI assistant" })
   const handleBox = await handle.boundingBox()
   expect(before).not.toBeNull()
