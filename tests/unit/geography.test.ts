@@ -1,5 +1,20 @@
 import { describe, expect, test } from "vitest"
-import { RESULT_VIEWS, classifyLocation, isResultViewEnabled } from "@/lib/geography"
+import { RESULT_VIEWS, classifyLocation, impactByLocation, isResultViewEnabled, shadeForShare } from "@/lib/geography"
+import type { ActivityContribution } from "@/lib/lcaApi"
+
+const contribution = (process_name: string, location: string | null, direct_score: number): ActivityContribution => ({
+  activity_id: process_name, process_name, database: "bafu", code: process_name, location,
+  scope: "background", direct_score, percentage: null, occurrence_count: 1,
+})
+
+// A small cotton-like result: 10 kg CO2-eq in total.
+const sample: ActivityContribution[] = [
+  contribution("Electricity, low voltage, at grid", "CN", 4),
+  contribution("Heat, natural gas, at industrial furnace", "CH", 1.5),
+  contribution("Treatment, sewage", "CH", 0.5),
+  contribution("Heat, light fuel oil, at industrial furnace", "RER", 3),
+  contribution("Chemicals organic, at plant", "GLO", 1),
+]
 
 describe("Geography view (issue #87)", () => {
   test("Rule 1: Results menu lists Geography, disabled until there are results", () => {
@@ -26,5 +41,19 @@ describe("Geography view (issue #87)", () => {
     expect(classifyLocation("GLO")).toEqual({ kind: "worldwide", code: "GLO", countries: [] })
     expect(classifyLocation("XYZ")).toEqual({ kind: "unknown", code: "XYZ", countries: [] })
     expect(classifyLocation(null)).toEqual({ kind: "unknown", code: "Not specified", countries: [] })
+  })
+
+  test("Rule 3: places with a bigger share are shaded more strongly", () => {
+    const places = impactByLocation(sample)
+    // Largest first, each process counted once, shares adding up to 100%.
+    expect(places.map((place) => place.code)).toEqual(["CN", "RER", "CH", "GLO"])
+    expect(places.find((place) => place.code === "CH")?.score).toBeCloseTo(2)
+    expect(places.find((place) => place.code === "CN")?.share).toBeCloseTo(0.4)
+    expect(places.reduce((sum, place) => sum + place.share, 0)).toBeCloseTo(1)
+    expect(places.find((place) => place.code === "RER")?.kind).toBe("region")
+
+    expect(shadeForShare(0.6, 0.6)).toBeGreaterThan(shadeForShare(0.1, 0.6))
+    expect(shadeForShare(0, 0.6)).toBe(0)
+    expect(shadeForShare(0.6, 0.6)).toBeLessThanOrEqual(1)
   })
 })
