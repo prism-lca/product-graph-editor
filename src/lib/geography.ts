@@ -17,3 +17,57 @@ export const RESULT_VIEWS = [
 /** Every result view needs a current calculation, except the LCA results overview. */
 export const isResultViewEnabled = (view: ProductGraphView, hasCurrentResults: boolean) =>
   view === "results" || hasCurrentResults
+
+/**
+ * ISO 3166 alpha-2 -> ISO 3166 numeric (zero-padded, as the map shapes use).
+ * Covers every two-letter location in the bafu and mock_background databases,
+ * plus the European countries the RER region needs. "CS" is the former
+ * Serbia and Montenegro, which ecoinvent-style data still uses.
+ */
+const COUNTRY_TABLE = `
+AD:020 AE:784 AL:008 AO:024 AR:032 AT:040 AU:036 AZ:031 BA:070 BD:050 BE:056
+BG:100 BO:068 BR:076 BY:112 CA:124 CH:756 CL:152 CM:120 CN:156 CO:170
+CS:688,499 CY:196 CZ:203 DE:276 DK:208 DZ:012 EC:218 EE:233 EG:818 ES:724
+ET:231 FI:246 FR:250 GB:826 GQ:226 GR:300 HR:191 HU:348 ID:360 IE:372 IL:376
+IN:356 IQ:368 IR:364 IS:352 IT:380 JP:392 KE:404 KR:410 KW:414 KZ:398 LI:438
+LT:440 LU:442 LV:428 LY:434 MA:504 MC:492 MD:498 ME:499 MK:807 MT:470 MW:454
+MX:484 MY:458 NA:516 NE:562 NG:566 NL:528 NO:578 NZ:554 OM:512 PE:604 PG:598
+PH:608 PK:586 PL:616 PT:620 QA:634 RO:642 RS:688 RU:643 SA:682 SE:752 SG:702
+SI:705 SK:703 SM:674 TH:764 TM:795 TN:788 TR:792 TT:780 TW:158 TZ:834 UA:804
+US:840 UZ:860 VE:862 VN:704 ZA:710`
+
+const COUNTRIES: Record<string, string[]> = Object.fromEntries(
+  COUNTRY_TABLE.trim().split(/\s+/).map((entry) => {
+    const [alpha2, numeric] = entry.split(":")
+    return [alpha2, numeric.split(",")]
+  }),
+)
+
+const EUROPE = "AD AL AT BA BE BG BY CH CY CZ DE DK EE ES FI FR GB GR HR HU IE IS IT LI LT LU LV MC MD ME MK MT NL NO PL PT RO RS SE SI SK SM UA".split(" ")
+const countriesOf = (alpha2: string[]) => alpha2.flatMap((code) => COUNTRIES[code] ?? [])
+
+/**
+ * Regions we can draw today. Other region codes (RoW, RAS, UCTE, ...) are
+ * listed by code until the engine supplies their country lists.
+ */
+const REGIONS: Record<string, string[]> = {
+  RER: countriesOf(EUROPE),
+  "Europe without Switzerland": countriesOf(EUROPE.filter((code) => code !== "CH")),
+}
+
+const WORLDWIDE = new Set(["GLO"])
+
+export type LocationKind = "country" | "region" | "worldwide" | "unknown"
+export type LocationClass = { kind: LocationKind; code: string; countries: string[] }
+
+/** Label used for processes whose dataset has no location. */
+export const UNSPECIFIED_LOCATION = "Not specified"
+
+/** What a dataset's location code means on the map. */
+export function classifyLocation(location: string | null | undefined): LocationClass {
+  const code = location?.trim() || UNSPECIFIED_LOCATION
+  if (COUNTRIES[code]) return { kind: "country", code, countries: COUNTRIES[code] }
+  if (REGIONS[code]) return { kind: "region", code, countries: REGIONS[code] }
+  if (WORLDWIDE.has(code)) return { kind: "worldwide", code, countries: [] }
+  return { kind: "unknown", code, countries: [] }
+}
