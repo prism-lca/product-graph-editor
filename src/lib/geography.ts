@@ -1,3 +1,4 @@
+import type { ActivityContribution } from "@/lib/lcaApi"
 import type { ProductGraphView } from "@/state/productGraphStore"
 
 /**
@@ -70,4 +71,37 @@ export function classifyLocation(location: string | null | undefined): LocationC
   if (REGIONS[code]) return { kind: "region", code, countries: REGIONS[code] }
   if (WORLDWIDE.has(code)) return { kind: "worldwide", code, countries: [] }
   return { kind: "unknown", code, countries: [] }
+}
+
+export type PlaceImpact = LocationClass & {
+  /** Sum of the direct scores of every process in this place. */
+  score: number
+  /** score / total score of the result (0..1). */
+  share: number
+}
+
+/**
+ * Impact per place, largest first. Uses each activity's own direct score, so
+ * every process is counted once however often it occurs in the supply chain.
+ */
+export function impactByLocation(contributions: ActivityContribution[]): PlaceImpact[] {
+  const totals = new Map<string, number>()
+  let total = 0
+  for (const item of contributions) {
+    const { code } = classifyLocation(item.location)
+    totals.set(code, (totals.get(code) ?? 0) + item.direct_score)
+    total += item.direct_score
+  }
+  return [...totals.entries()]
+    .map(([code, score]) => ({ ...classifyLocation(code), score, share: total ? score / total : 0 }))
+    .sort((left, right) => Math.abs(right.score) - Math.abs(left.score))
+}
+
+/**
+ * Map fill strength (0..1) for a place's share, relative to the largest share
+ * on the map so the biggest place is always clearly the darkest.
+ */
+export function shadeForShare(share: number, largestShare: number) {
+  if (!largestShare || share <= 0) return 0
+  return 0.2 + 0.8 * Math.min(1, share / largestShare)
 }
