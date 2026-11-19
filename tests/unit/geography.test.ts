@@ -1,5 +1,5 @@
 import { describe, expect, test } from "vitest"
-import { RESULT_VIEWS, classifyLocation, impactByLocation, isResultViewEnabled, processesInLocation, shadeForShare } from "@/lib/geography"
+import { RESULT_VIEWS, classifyLocation, describeLocation, impactByLocation, isResultViewEnabled, processesInLocation, shadeForShare } from "@/lib/geography"
 import type { ActivityContribution } from "@/lib/lcaApi"
 
 const contribution = (process_name: string, location: string | null, direct_score: number): ActivityContribution => ({
@@ -68,5 +68,16 @@ describe("Geography view (issue #87)", () => {
     expect(swiss[1].share).toBeCloseTo(0.05)
     expect(processesInLocation(sample, "XYZ")).toEqual([])
     expect(processesInLocation([contribution("Assembly", null, 2)], "Not specified")).toHaveLength(1)
+  })
+
+  test("Rule 5: places show a plain name next to the code", () => {
+    expect(describeLocation("CH")).toEqual({ code: "CH", name: "Switzerland", label: "Switzerland · CH" })
+    expect(describeLocation("RER").label).toBe("Europe · RER")
+    expect(describeLocation("GLO").label).toBe("Worldwide · GLO")
+    expect(describeLocation("RoW").name).toBe("Rest of the world")
+    expect(describeLocation("CS").name).toBe("Serbia and Montenegro")
+    // Unknown codes are shown as they are, never hidden or guessed.
+    expect(describeLocation("XYZ")).toEqual({ code: "XYZ", name: "XYZ", label: "XYZ" })
+    expect(describeLocation("Not specified").label).toBe("Not specified")
   })
 })
