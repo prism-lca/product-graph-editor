@@ -122,3 +122,58 @@ export function processesInLocation(contributions: ActivityContribution[], code:
     .map((item) => ({ name: item.process_name, scope: item.scope, score: item.direct_score, share: total ? item.direct_score / total : 0 }))
     .sort((left, right) => Math.abs(right.score) - Math.abs(left.score))
 }
+
+/** Plain names for the region codes used in our databases. */
+const REGION_NAMES: Record<string, string> = {
+  GLO: "Worldwide",
+  RoW: "Rest of the world",
+  RER: "Europe",
+  RoE: "Rest of Europe",
+  "Europe without Switzerland": "Europe without Switzerland",
+  WEU: "Western Europe",
+  EEU: "Eastern Europe",
+  UCTE: "European power grid (UCTE)",
+  "ENTSO-E": "European power grid (ENTSO-E)",
+  NORDEL: "Nordic power grid (NORDEL)",
+  CENTREL: "Central European power grid (CENTREL)",
+  RAS: "Asia",
+  APAC: "Asia and the Pacific",
+  CPA: "Centrally planned Asia",
+  RME: "Middle East",
+  RAF: "Africa",
+  RLA: "Latin America",
+  RNA: "North America",
+  OCE: "Oceania",
+  CS: "Serbia and Montenegro",
+  ASCC: "US power grid (Alaska, ASCC)",
+  ERCOT: "US power grid (Texas, ERCOT)",
+  FRCC: "US power grid (Florida, FRCC)",
+  MRO: "US power grid (Midwest, MRO)",
+  NPCC: "US power grid (Northeast, NPCC)",
+  RFC: "US power grid (RFC)",
+  SERC: "US power grid (Southeast, SERC)",
+  SPP: "US power grid (Southwest, SPP)",
+  WECC: "US power grid (West, WECC)",
+}
+
+const countryNames = typeof Intl.DisplayNames === "function" ? new Intl.DisplayNames(["en"], { type: "region" }) : null
+
+const countryName = (code: string) => {
+  if (!/^[A-Z]{2}$/.test(code)) return undefined
+  try {
+    const name = countryNames?.of(code)
+    return name && name !== code ? name : undefined
+  } catch {
+    return undefined
+  }
+}
+
+export type LocationDescription = { code: string; name: string; label: string }
+
+/** A plain-language name for a location code, e.g. "Switzerland · CH". Unknown codes are shown as they are. */
+export function describeLocation(location: string | null | undefined): LocationDescription {
+  const { code } = classifyLocation(location)
+  const name = REGION_NAMES[code] ?? countryName(code)
+  if (!name || name === code) return { code, name: code, label: code }
+  return { code, name, label: `${name} · ${code}` }
+}
