@@ -69,7 +69,14 @@ const pathOf = (geometry) => {
   return polygons.flatMap((polygon) => polygon.map((indexes) => {
     const points = simplify(ring(indexes).map(project))
     if (points.length < 3) return ""
-    return `M${points.map(([x, y]) => `${x.toFixed(1)} ${y.toFixed(1)}`).join("L")}Z`
+    // Rings crossing the date line (Russia, Fiji) jump from one edge of the map
+    // to the other; start a new sub-path there instead of drawing the jump.
+    const crossesDateLine = points.some(([x], i) => i && Math.abs(x - points[i - 1][0]) > WIDTH / 2)
+    const commands = points.map(([x, y], i) => {
+      const jump = i && Math.abs(x - points[i - 1][0]) > WIDTH / 2
+      return `${i === 0 || jump ? "M" : "L"}${x.toFixed(1)} ${y.toFixed(1)}`
+    }).join("")
+    return crossesDateLine ? commands : `${commands}Z`
   })).join("")
 }
 

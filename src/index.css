@@ -628,7 +628,7 @@ html[data-theme="light"] .impact-bar, html[data-theme="light"] .process-result-b
 html[data-theme="light"] .geography-view { box-shadow: 0 18px 44px rgba(41,51,68,.14); }
 html[data-theme="light"] .geography-land path.is-shaded, html[data-theme="light"] .geography-legend i.is-country { fill: #0284c7; background: #0284c7; }
 html[data-theme="light"] .geography-outlines path { stroke: #0284c7; }
-@media (max-width: 620px) { .geography-panel-side { max-width: none; border-left: 0; border-top: 1px solid var(--border); } .geography-map-area { padding: 10px; } }
+@media (max-width: 620px) { .geography-panel-side { max-width: none; border-left: 0; border-top: 1px solid var(--border); } .geography-map-area { padding: 10px; } .geography-offmap { position: static; justify-content: flex-start; max-width: none; padding: 8px; border-top: 1px solid var(--border); } }
 html[data-theme="light"] .impact-bar i, html[data-theme="light"] .process-result-bar i, html[data-theme="light"] .result-bar i { background: #6366f1; }
 html[data-theme="light"] .impact-bar.flow i, html[data-theme="light"] .process-flow-table .process-result-bar i { background: #2563eb; }
 html[data-theme="light"] .result-bar i.negative { background: #dc2626; }
