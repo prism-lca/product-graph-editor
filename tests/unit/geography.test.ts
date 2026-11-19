@@ -1,6 +1,6 @@
 import { describe, expect, test } from "vitest"
-import { RESULT_VIEWS, classifyLocation, describeLocation, impactByLocation, isResultViewEnabled, processesInLocation, shadeForShare } from "@/lib/geography"
-import type { ActivityContribution } from "@/lib/lcaApi"
+import { RESULT_VIEWS, buildGeography, classifyLocation, describeLocation, impactByLocation, isResultViewEnabled, processesInLocation, shadeForShare } from "@/lib/geography"
+import type { ActivityContribution, ContributionGraph } from "@/lib/lcaApi"
 
 const contribution = (process_name: string, location: string | null, direct_score: number): ActivityContribution => ({
   activity_id: process_name, process_name, database: "bafu", code: process_name, location,
@@ -79,5 +79,27 @@ describe("Geography view (issue #87)", () => {
     // Unknown codes are shown as they are, never hidden or guessed.
     expect(describeLocation("XYZ")).toEqual({ code: "XYZ", name: "XYZ", label: "XYZ" })
     expect(describeLocation("Not specified").label).toBe("Not specified")
+  })
+
+  test("Rule 6: a new result gives a new map", () => {
+    const graph = (label: string, activity_contributions: ActivityContribution[]) => ({
+      label, unit: "kg CO2-Eq", total_score: activity_contributions.reduce((sum, item) => sum + item.direct_score, 0), activity_contributions,
+    }) as unknown as ContributionGraph
+    const before = { contribution_graphs: [graph("Climate change", sample)] }
+    // The user switched the electricity input from China to Switzerland and recalculated.
+    const after = { contribution_graphs: [graph("Climate change", [
+      contribution("Electricity, low voltage, at grid", "CH", 0.4),
+      ...sample.slice(1),
+    ])] }
+
+    const first = buildGeography(before, "Climate change")
+    const second = buildGeography(after, "Climate change")
+    expect(first.places[0].code).toBe("CN")
+    expect(second.places.map((place) => place.code)).not.toContain("CN")
+    expect(second.places[0].code).toBe("RER")
+    expect(second.unit).toBe("kg CO2-Eq")
+    // A category without contribution data yet gives an empty map, not the old one.
+    expect(buildGeography(after, "Water use").places).toEqual([])
+    expect(buildGeography(after, "Water use").status).toBe("loading")
   })
 })
