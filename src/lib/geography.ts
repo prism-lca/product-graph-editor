@@ -1,4 +1,4 @@
-import type { ActivityContribution } from "@/lib/lcaApi"
+import type { ActivityContribution, ContributionGraph } from "@/lib/lcaApi"
 import type { ProductGraphView } from "@/state/productGraphStore"
 
 /**
@@ -176,4 +176,35 @@ export function describeLocation(location: string | null | undefined): LocationD
   const name = REGION_NAMES[code] ?? countryName(code)
   if (!name || name === code) return { code, name: code, label: code }
   return { code, name, label: `${name} · ${code}` }
+}
+
+export type GeographyModel = {
+  /** "loading" until the contribution data for this category has arrived. */
+  status: "loading" | "ready"
+  category: string
+  unit: string
+  total: number
+  places: PlaceImpact[]
+  largestShare: number
+  contributions: ActivityContribution[]
+}
+
+/**
+ * Everything the Geography view draws, worked out fresh from the result it is
+ * given. The view keeps no copy, so a recalculation always shows the new result.
+ */
+export function buildGeography(result: { contribution_graphs: ContributionGraph[] }, category: string): GeographyModel {
+  const graph = result.contribution_graphs.find((item) => item.label === category)
+  if (!graph) return { status: "loading", category, unit: "", total: 0, places: [], largestShare: 0, contributions: [] }
+  const contributions = graph.activity_contributions ?? []
+  const places = impactByLocation(contributions)
+  return {
+    status: "ready",
+    category,
+    unit: graph.unit,
+    total: contributions.reduce((sum, item) => sum + item.direct_score, 0),
+    places,
+    largestShare: places.reduce((largest, place) => Math.max(largest, place.share), 0),
+    contributions,
+  }
 }
