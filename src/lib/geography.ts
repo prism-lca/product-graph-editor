@@ -105,3 +105,20 @@ export function shadeForShare(share: number, largestShare: number) {
   if (!largestShare || share <= 0) return 0
   return 0.2 + 0.8 * Math.min(1, share / largestShare)
 }
+
+export type ProcessInPlace = {
+  name: string
+  scope: ActivityContribution["scope"]
+  score: number
+  /** score / total score of the whole result (0..1). */
+  share: number
+}
+
+/** The processes located in one place, largest first, with their share of the whole result. */
+export function processesInLocation(contributions: ActivityContribution[], code: string): ProcessInPlace[] {
+  const total = contributions.reduce((sum, item) => sum + item.direct_score, 0)
+  return contributions
+    .filter((item) => classifyLocation(item.location).code === code)
+    .map((item) => ({ name: item.process_name, scope: item.scope, score: item.direct_score, share: total ? item.direct_score / total : 0 }))
+    .sort((left, right) => Math.abs(right.score) - Math.abs(left.score))
+}
