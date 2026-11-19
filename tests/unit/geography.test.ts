@@ -1,5 +1,5 @@
 import { describe, expect, test } from "vitest"
-import { RESULT_VIEWS, classifyLocation, impactByLocation, isResultViewEnabled, shadeForShare } from "@/lib/geography"
+import { RESULT_VIEWS, classifyLocation, impactByLocation, isResultViewEnabled, processesInLocation, shadeForShare } from "@/lib/geography"
 import type { ActivityContribution } from "@/lib/lcaApi"
 
 const contribution = (process_name: string, location: string | null, direct_score: number): ActivityContribution => ({
@@ -55,5 +55,18 @@ describe("Geography view (issue #87)", () => {
     expect(shadeForShare(0.6, 0.6)).toBeGreaterThan(shadeForShare(0.1, 0.6))
     expect(shadeForShare(0, 0.6)).toBe(0)
     expect(shadeForShare(0.6, 0.6)).toBeLessThanOrEqual(1)
+  })
+
+  test("Rule 4: selecting a place lists its processes and their shares", () => {
+    const swiss = processesInLocation(sample, "CH")
+    expect(swiss.map((process) => process.name)).toEqual([
+      "Heat, natural gas, at industrial furnace",
+      "Treatment, sewage",
+    ])
+    // Shares are of the whole result (10), so they add up to Switzerland's 20%.
+    expect(swiss[0].share).toBeCloseTo(0.15)
+    expect(swiss[1].share).toBeCloseTo(0.05)
+    expect(processesInLocation(sample, "XYZ")).toEqual([])
+    expect(processesInLocation([contribution("Assembly", null, 2)], "Not specified")).toHaveLength(1)
   })
 })
