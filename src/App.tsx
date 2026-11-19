@@ -40,6 +40,8 @@ import { ContributionView } from "@/components/views/ContributionView"
 import { InventoryView } from "@/components/views/InventoryView"
 import { ProcessResultsView } from "@/components/views/ProcessResultsView"
 import { SankeyView } from "@/components/views/SankeyView"
+import { GeographyView } from "@/components/views/GeographyView"
+import { RESULT_VIEWS, isResultViewEnabled } from "@/lib/geography"
 import { FileMenu } from "@/components/workspace/FileMenu"
 import {
   AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription,
@@ -74,7 +76,7 @@ type NodeMeta = { label: string; kind: string; detail: string; color: string; sc
 
 
 const EDITOR_COLLAPSED_STORAGE = "product-graph-editor:property-editor-collapsed"
-const destinations = [["yaml", "Edit"], ["graph", "Graph"], ["results", "LCA results"], ["inventory", "Inventory"], ["impact", "Impact analysis"], ["process", "Process results"], ["contribution", "Contributions"], ["sankey", "Sankey"]] as const
+const destinations = [["yaml", "Edit"], ["graph", "Graph"], ...RESULT_VIEWS] as const
 
 /** The framed graph canvas; the graph tool bar cannot be dragged outside it. */
 const graphCanvasElement = () => document.querySelector<HTMLElement>(".graph-viewport")
@@ -463,7 +465,7 @@ function GraphEditor({ onTitleChange, navbarTarget, chatPortalTarget, active, ch
             <DropdownMenuTrigger asChild><Button variant="ghost" size="icon" aria-label="Open navigation"><Menu /></Button></DropdownMenuTrigger>
             <DropdownMenuContent align="start" className="phone-navigation">
               <DropdownMenuGroup>
-                {destinations.map(([destination, label]) => <DropdownMenuItem key={destination} aria-current={view === destination ? "page" : undefined} disabled={!["yaml", "graph", "results"].includes(destination) && !hasCurrentResults} onSelect={() => requestView(destination)}>{label}{view === destination ? <Check /> : null}</DropdownMenuItem>)}
+                {destinations.map(([destination, label]) => <DropdownMenuItem key={destination} aria-current={view === destination ? "page" : undefined} disabled={destination !== "yaml" && destination !== "graph" && !isResultViewEnabled(destination, hasCurrentResults)} onSelect={() => requestView(destination)}>{label}{view === destination ? <Check /> : null}</DropdownMenuItem>)}
                 <DropdownMenuItem onSelect={() => onChatOpenChange(true)}>Chat</DropdownMenuItem>
                 <DropdownMenuItem onSelect={onWelcomeOpen}>Welcome</DropdownMenuItem>
               </DropdownMenuGroup>
@@ -505,16 +507,9 @@ function GraphEditor({ onTitleChange, navbarTarget, chatPortalTarget, active, ch
           <DropdownMenuContent align="start" className="navbar-dropdown">
             <DropdownMenuLabel>Analysis views</DropdownMenuLabel>
             <DropdownMenuGroup>
-              {([
-                ["results", "LCA results"],
-                ["inventory", "Inventory"],
-                ["impact", "Impact analysis"],
-                ["process", "Process results"],
-                ["contribution", "Contributions"],
-                ["sankey", "Sankey"],
-              ] as const).map(([resultView, label]) => {
+              {RESULT_VIEWS.map(([resultView, label]) => {
                 const selected = view === resultView
-                return <DropdownMenuItem key={resultView} aria-current={selected ? "true" : undefined} onSelect={() => requestView(resultView)} disabled={resultView !== "results" && !hasCurrentResults}>
+                return <DropdownMenuItem key={resultView} aria-current={selected ? "true" : undefined} onSelect={() => requestView(resultView)} disabled={!isResultViewEnabled(resultView, hasCurrentResults)}>
                   <span className="model-menu-item-title">{label}</span>{selected ? <Check className="model-menu-check" /> : null}
                 </DropdownMenuItem>
               })}
@@ -615,7 +610,7 @@ function GraphEditor({ onTitleChange, navbarTarget, chatPortalTarget, active, ch
           onChange={(yaml) => { dispatchModelWorkspace({ type: "edit-draft", yaml }); setYamlError("") }}
           onSave={saveSessionModel}
           onSaveAs={openSaveAsDialog}
-        /> : view === "inventory" ? <InventoryView result={lcaResult} yaml={appliedYaml} isCurrent={hasCurrentResults} error={resultsError} /> : view === "impact" ? <ImpactAnalysisView result={lcaResult} yaml={appliedYaml} isCurrent={hasCurrentResults} error={resultsError || contributionError} loadContributionGraphs={loadContributionGraphs} /> : view === "process" && hasCurrentResults && lcaResult ? <ProcessResultsView result={lcaResult} yaml={appliedYaml} /> : view === "contribution" ? <ContributionView result={lcaResult} yaml={appliedYaml} isCurrent={hasCurrentResults} error={resultsError || contributionError} loadContributionGraphs={loadContributionGraphs} /> : view === "sankey" && hasCurrentResults && lcaResult ? <SankeyView result={lcaResult} loadContributionGraphs={loadContributionGraphs} /> : <div className="results-panel">
+        /> : view === "inventory" ? <InventoryView result={lcaResult} yaml={appliedYaml} isCurrent={hasCurrentResults} error={resultsError} /> : view === "impact" ? <ImpactAnalysisView result={lcaResult} yaml={appliedYaml} isCurrent={hasCurrentResults} error={resultsError || contributionError} loadContributionGraphs={loadContributionGraphs} /> : view === "process" && hasCurrentResults && lcaResult ? <ProcessResultsView result={lcaResult} yaml={appliedYaml} /> : view === "contribution" ? <ContributionView result={lcaResult} yaml={appliedYaml} isCurrent={hasCurrentResults} error={resultsError || contributionError} loadContributionGraphs={loadContributionGraphs} /> : view === "sankey" && hasCurrentResults && lcaResult ? <SankeyView result={lcaResult} loadContributionGraphs={loadContributionGraphs} /> : view === "geography" ? <GeographyView result={lcaResult} isCurrent={hasCurrentResults} error={resultsError || contributionError} loadContributionGraphs={loadContributionGraphs} /> : <div className="results-panel">
           <div className="results-panel-head">
             <div><strong>LCA Results</strong>{isCalculating ? <span className="calculation-message">Calculating…</span> : null}</div>
           </div>

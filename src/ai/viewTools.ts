@@ -119,6 +119,7 @@ const VIEW_DEFINITIONS: ReadonlyArray<Omit<ViewAvailability, "available" | "unav
   { id: "process", label: "Process results", description: "Process-level inventory and impact results.", requiresResults: true },
   { id: "contribution", label: "Contributions", description: "Contribution analysis for current results.", requiresResults: true },
   { id: "sankey", label: "Sankey", description: "Sankey visualization for current results.", requiresResults: true },
+  { id: "geography", label: "Geography", description: "World map of where the current results' impacts happen.", requiresResults: true },
 ]
 
 export const viewToolDefinitions: ViewToolDefinition[] = [

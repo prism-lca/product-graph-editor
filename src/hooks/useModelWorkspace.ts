@@ -18,8 +18,8 @@ import { useProductGraphStore, type ProductGraphView as View } from "@/state/pro
 // launch instead -- the browser tests do this so they start from Jacket.
 const STARTUP_PRODUCT_GRAPH_ID = import.meta.env.VITE_DEFAULT_PRODUCT_GRAPH_ID as string | undefined
 
-type AnalysisView = Extract<View, "inventory" | "impact" | "process" | "contribution" | "sankey">
-const analysisViews: AnalysisView[] = ["inventory", "impact", "process", "contribution", "sankey"]
+type AnalysisView = Extract<View, "inventory" | "impact" | "process" | "contribution" | "sankey" | "geography">
+const analysisViews: AnalysisView[] = ["inventory", "impact", "process", "contribution", "sankey", "geography"]
 const isAnalysisView = (view: View): view is AnalysisView => analysisViews.includes(view as AnalysisView)
 
 export type PendingAction =
@@ -347,7 +347,7 @@ export function useModelWorkspace({
 
   const openAnalysisView = (next: AnalysisView) => {
     setView(next)
-    if (["impact", "process", "contribution", "sankey"].includes(next) && cumulativeCategories.length) {
+    if (["impact", "process", "contribution", "sankey", "geography"].includes(next) && cumulativeCategories.length) {
       void loadContributionGraphs(cumulativeCategories).catch((caught) => {
         setContributionError(caught instanceof Error ? caught.message : "Could not calculate cumulative contributions.")
       })

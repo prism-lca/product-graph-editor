@@ -1,0 +1,105 @@
+import { describe, expect, test } from "vitest"
+import { RESULT_VIEWS, buildGeography, classifyLocation, describeLocation, impactByLocation, isResultViewEnabled, processesInLocation, shadeForShare } from "@/lib/geography"
+import type { ActivityContribution, ContributionGraph } from "@/lib/lcaApi"
+
+const contribution = (process_name: string, location: string | null, direct_score: number): ActivityContribution => ({
+  activity_id: process_name, process_name, database: "bafu", code: process_name, location,
+  scope: "background", direct_score, percentage: null, occurrence_count: 1,
+})
+
+// A small cotton-like result: 10 kg CO2-eq in total.
+const sample: ActivityContribution[] = [
+  contribution("Electricity, low voltage, at grid", "CN", 4),
+  contribution("Heat, natural gas, at industrial furnace", "CH", 1.5),
+  contribution("Treatment, sewage", "CH", 0.5),
+  contribution("Heat, light fuel oil, at industrial furnace", "RER", 3),
+  contribution("Chemicals organic, at plant", "GLO", 1),
+]
+
+describe("Geography view (issue #87)", () => {
+  test("Rule 1: Results menu lists Geography, disabled until there are results", () => {
+    expect(RESULT_VIEWS).toContainEqual(["geography", "Geography"])
+    expect(isResultViewEnabled("geography", false)).toBe(false)
+    expect(isResultViewEnabled("geography", true)).toBe(true)
+    // The overview page stays reachable before a calculation, as today.
+    expect(isResultViewEnabled("results", false)).toBe(true)
+  })
+
+  // Map shapes are keyed by ISO 3166 numeric codes: CH 756, DE 276, FR 250.
+  test("Rule 2: location codes are classed as country, region, worldwide or unknown", () => {
+    expect(classifyLocation("CH")).toEqual({ kind: "country", code: "CH", countries: ["756"] })
+
+    const europe = classifyLocation("RER")
+    expect(europe.kind).toBe("region")
+    expect(europe.countries).toEqual(expect.arrayContaining(["276", "250", "756"]))
+
+    const europeWithoutSwitzerland = classifyLocation("Europe without Switzerland")
+    expect(europeWithoutSwitzerland.kind).toBe("region")
+    expect(europeWithoutSwitzerland.countries).toContain("276")
+    expect(europeWithoutSwitzerland.countries).not.toContain("756")
+
+    expect(classifyLocation("GLO")).toEqual({ kind: "worldwide", code: "GLO", countries: [] })
+    expect(classifyLocation("XYZ")).toEqual({ kind: "unknown", code: "XYZ", countries: [] })
+    expect(classifyLocation(null)).toEqual({ kind: "unknown", code: "Not specified", countries: [] })
+  })
+
+  test("Rule 3: places with a bigger share are shaded more strongly", () => {
+    const places = impactByLocation(sample)
+    // Largest first, each process counted once, shares adding up to 100%.
+    expect(places.map((place) => place.code)).toEqual(["CN", "RER", "CH", "GLO"])
+    expect(places.find((place) => place.code === "CH")?.score).toBeCloseTo(2)
+    expect(places.find((place) => place.code === "CN")?.share).toBeCloseTo(0.4)
+    expect(places.reduce((sum, place) => sum + place.share, 0)).toBeCloseTo(1)
+    expect(places.find((place) => place.code === "RER")?.kind).toBe("region")
+
+    expect(shadeForShare(0.6, 0.6)).toBeGreaterThan(shadeForShare(0.1, 0.6))
+    expect(shadeForShare(0, 0.6)).toBe(0)
+    expect(shadeForShare(0.6, 0.6)).toBeLessThanOrEqual(1)
+  })
+
+  test("Rule 4: selecting a place lists its processes and their shares", () => {
+    const swiss = processesInLocation(sample, "CH")
+    expect(swiss.map((process) => process.name)).toEqual([
+      "Heat, natural gas, at industrial furnace",
+      "Treatment, sewage",
+    ])
+    // Shares are of the whole result (10), so they add up to Switzerland's 20%.
+    expect(swiss[0].share).toBeCloseTo(0.15)
+    expect(swiss[1].share).toBeCloseTo(0.05)
+    expect(processesInLocation(sample, "XYZ")).toEqual([])
+    expect(processesInLocation([contribution("Assembly", null, 2)], "Not specified")).toHaveLength(1)
+  })
+
+  test("Rule 5: places show a plain name next to the code", () => {
+    expect(describeLocation("CH")).toEqual({ code: "CH", name: "Switzerland", label: "Switzerland · CH" })
+    expect(describeLocation("RER").label).toBe("Europe · RER")
+    expect(describeLocation("GLO").label).toBe("Worldwide · GLO")
+    expect(describeLocation("RoW").name).toBe("Rest of the world")
+    expect(describeLocation("CS").name).toBe("Serbia and Montenegro")
+    // Unknown codes are shown as they are, never hidden or guessed.
+    expect(describeLocation("XYZ")).toEqual({ code: "XYZ", name: "XYZ", label: "XYZ" })
+    expect(describeLocation("Not specified").label).toBe("Not specified")
+  })
+
+  test("Rule 6: a new result gives a new map", () => {
+    const graph = (label: string, activity_contributions: ActivityContribution[]) => ({
+      label, unit: "kg CO2-Eq", total_score: activity_contributions.reduce((sum, item) => sum + item.direct_score, 0), activity_contributions,
+    }) as unknown as ContributionGraph
+    const before = { contribution_graphs: [graph("Climate change", sample)] }
+    // The user switched the electricity input from China to Switzerland and recalculated.
+    const after = { contribution_graphs: [graph("Climate change", [
+      contribution("Electricity, low voltage, at grid", "CH", 0.4),
+      ...sample.slice(1),
+    ])] }
+
+    const first = buildGeography(before, "Climate change")
+    const second = buildGeography(after, "Climate change")
+    expect(first.places[0].code).toBe("CN")
+    expect(second.places.map((place) => place.code)).not.toContain("CN")
+    expect(second.places[0].code).toBe("RER")
+    expect(second.unit).toBe("kg CO2-Eq")
+    // A category without contribution data yet gives an empty map, not the old one.
+    expect(buildGeography(after, "Water use").places).toEqual([])
+    expect(buildGeography(after, "Water use").status).toBe("loading")
+  })
+})
