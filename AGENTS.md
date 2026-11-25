@@ -44,3 +44,8 @@ The three formerly accepted visual failures (issues #37, #38, #39) are all
 fixed and closed, so there is no longer an accepted-failure allowance: a
 failing visual test is now simply a regression. Never update screenshots
 without inspecting the actual, expected, and diff images.
+
+## Pushing
+
+Never push on your own. Commit when these instructions say to, but push only
+when the person asks you to.
